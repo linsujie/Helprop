@@ -1,15 +1,19 @@
 #include "particle.h"
 
-particle::particle(std::vector<double> &param, std::vector<int> &seq){
-    for(int i=0;i<seq.size(); i++){
-        if(seq[i] == 1) E0 = param[i];
-        else if(seq[i] == 2) B0 = param[i] * pow(10., -9.);
-        else if(seq[i] == 3) polarity = param[i];
-        else if(seq[i] == 4) angle = param[i];
-        else if(seq[i] == 5) D = param[i];
-        else if(seq[i] == 6) indexA = param[i];
-        else if(seq[i] == 7) Ek = param[i];
-    }
+using namespace std;
+
+particle::particle() {}
+
+particle::particle(const map<string, docopt::value> &args){
+    auto fargs = [&](const string& key) -> double { return stod(args.at(key).asString()); };
+    E0 = fargs("--mass") * 1e3;
+    B0 = fargs("--B0") * pow(10., -9.);
+    polarity = args.at("--polarity").asLong();
+    angle = fargs("--angle");
+    D = fargs("--D");
+    indexA = fargs("--indexA");
+
+    Ek = E0;
 }
 
 particle::~particle(){}
@@ -25,11 +29,11 @@ const double particle::Wind(){
 
 //     for(int i=0;i<9;i++){
 //         double a = (5+10*i)*pi/180;
-//         std::cout << a << "   " << 1.475 - 0.4 * tanh(6.8*((a - 1.*pi/2.) + (15. + angle)/180.*pi)) * (3.5/5. - 1.5/5.*tanh((r-95.)/1.2)) << std::endl;
+//         cout << a << "   " << 1.475 - 0.4 * tanh(6.8*((a - 1.*pi/2.) + (15. + angle)/180.*pi)) * (3.5/5. - 1.5/5.*tanh((r-95.)/1.2)) << endl;
 //     }
 //     for(int i=9;i<18;i++){
 //         double a = (5+10*i)*pi/180;
-//         std::cout << a << "   " << 1.475 + 0.4 * tanh(6.8*((a - 1.*pi/2.) - (15. + angle)/180.*pi)) * (3.5/5. - 1.5/5.*tanh((r-95.)/1.2)) << std::endl;
+//         cout << a << "   " << 1.475 + 0.4 * tanh(6.8*((a - 1.*pi/2.) - (15. + angle)/180.*pi)) * (3.5/5. - 1.5/5.*tanh((r-95.)/1.2)) << endl;
 //     }
 // getchar();
     return value * 400.;
@@ -38,7 +42,7 @@ const double particle::Wind(){
 const double particle::Theta_S(){
     double value;
     value = asin(sin(angle*pi/180.)*sin(Omega*r*AU/400.)/0.8354);
-// std::cout << "theta_s :  " << value << "   " << sin(Omega*r*AU/400.) << std::endl;
+// cout << "theta_s :  " << value << "   " << sin(Omega*r*AU/400.) << endl;
 // getchar();
     return value;
 }
@@ -71,7 +75,7 @@ const double particle::K_rr(){
     double ky = 0.02 * kx;
     double kr = kx * pow(cos(psy), 2.) + ky * pow(sin(psy), 2.);
 
-    //     std::cout << "VD :  " << kx << "  " << D << "  " << ky << "  " <<  pow(Ek, indexA)<< std::endl;
+    //     cout << "VD :  " << kx << "  " << D << "  " << ky << "  " <<  pow(Ek, indexA)<< endl;
     // getchar();
 
     return kr;
@@ -88,7 +92,7 @@ const double particle::K_tt(){
         kz = ky * (2. + 1.*tanh(8*((theta + (- 90. - 35.)*pi/180.))));
     }
 
-// std::cout << "VD :  " << ky<< "  " << kz << "  " << (2. + 1.*tanh(8*((theta + (- 90. - 35.)*pi/180.)))) << std::endl;
+// cout << "VD :  " << ky<< "  " << kz << "  " << (2. + 1.*tanh(8*((theta + (- 90. - 35.)*pi/180.)))) << endl;
 
 
 //         getchar();
@@ -102,14 +106,12 @@ const double particle::K_pp(){
     return ky;
 }
 
-
-
-void particle::step(){
-    std::random_device rd;
-    std::mt19937 gen(rd());
+void particle::step() {
+    random_device rd;
+    mt19937 gen(rd());
     double mean = 0.0;
     double dev = 1.0;
-    std::normal_distribution<double> dist(mean, dev);
+    normal_distribution<double> dist(mean, dev);
 
     double record_T = 0.;
 
@@ -137,7 +139,7 @@ void particle::step(){
         Vdr_gc = drift/pow(1+gamma*gamma, 2.) * heaviside * (-1.*gamma/ tan(theta));
         Vdp_gc = drift/pow(1+gamma*gamma, 2.) * heaviside * (2. + gamma*gamma) * gamma;
         Vdt_gc = drift/pow(1+gamma*gamma, 2.) * heaviside * gamma*gamma / tan(theta);
-// std::cout << "VD :  " << drift<< "  " << Vdr_gc << "  " << Vdp_gc << "  " << Vdt_gc << std::endl;
+// cout << "VD :  " << drift<< "  " << Vdr_gc << "  " << Vdp_gc << "  " << Vdt_gc << endl;
 //         getchar();
         double Vd = drift/(1+gamma*gamma) ;
 
@@ -167,9 +169,6 @@ void particle::step(){
 
         if(phy<0.) phy = 2.*pi - phy;
         else if(2.*pi<phy) phy -= 2.*pi;
-
-
-
     }
 
 }

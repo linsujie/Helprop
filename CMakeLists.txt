@@ -2,17 +2,16 @@ cmake_minimum_required(VERSION 3.13)
 set(CMAKE_CXX_FLAGS "-std=c++11")
 project(pro)
 
-include_directories(
-    ${PROJECT_SOURCE_DIR}/src/particle
-    ${PROJECT_SOURCE_DIR}/src/import
-)
+ADD_SUBDIRECTORY(${PROJECT_SOURCE_DIR}/docopt)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/docopt)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src)
 
 set(SRC
     ${PROJECT_SOURCE_DIR}/src/particle.cc
-    ${PROJECT_SOURCE_DIR}/src/import.cc
     ${PROJECT_SOURCE_DIR}/src/main.cc
 )
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
 
-ADD_EXECUTABLE(prop ${SRC})
+ADD_EXECUTABLE(HelProp ${SRC})
+TARGET_LINK_LIBRARIES(HelProp docopt)

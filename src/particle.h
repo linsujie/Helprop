@@ -5,9 +5,7 @@
 #include <cmath>
 #include <random>
 #include <fstream>
-
-
-
+#include "docopt.h"
 class particle {
     private:
 
@@ -56,7 +54,8 @@ class particle {
 
 
     public:
-    particle(std::vector<double> &, std::vector<int> &);
+    particle(const std::map<std::string, docopt::value>& args);
+    particle();
     ~particle();
 
     void step();                                                //simulate trajectory of particle

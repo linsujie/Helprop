@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
   particle one(args);
 
   for (int i = 0; i < ekin.size(); i++) {
-    one.Ek = ekin[i] * 1e3;
+    one.Ek = ekin[i] * Unit::GeV;
     auto Particle = simulating(one, number, th_num);
 
     auto bin = count_distribution(Particle, ekin);

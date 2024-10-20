@@ -1,19 +1,20 @@
 #include "particle.h"
 
 using namespace std;
+using namespace Unit;
 
 particle::particle() {}
 
 particle::particle(const map<string, docopt::value> &args){
     auto fargs = [&](const string& key) -> double { return stod(args.at(key).asString()); };
-    E0 = fargs("--mass") * 1e3;
-    B0 = fargs("--B0") * pow(10., -9.);
+    mass = fargs("--mass") * GeV;
+    B0 = fargs("--B0") * nT;
     polarity = args.at("--polarity").asLong();
-    angle = fargs("--angle");
-    D = fargs("--D");
+    angle = fargs("--angle") * deg;
+    D = fargs("--D") * AU * AU / sec;
     indexA = fargs("--indexA");
 
-    Ek = E0;
+    Ek = mass;
 }
 
 particle::~particle(){}
@@ -21,10 +22,10 @@ particle::~particle(){}
 const double particle::Wind(){
     double value;
     if(0.<theta && theta<pi/2.){
-        value = 1.475 - 0.4 * tanh(6.8*((theta - 1.*pi/2.) + (15. + angle)/180.*pi)) * (3.5/5. - 1.5/5.*tanh((r-95.)/1.2));
+        value = 1.475 - 0.4 * tanh(6.8*((theta - pi/2) + (15*deg + angle))) * (3.5/5. - 1.5/5.*tanh((r-95*AU)/1.2/AU));
     }
     else if(pi/2.<theta && theta<pi){
-        value = 1.475 + 0.4 * tanh(6.8*((theta - 1.*pi/2.) - (15. + angle)/180.*pi)) * (3.5/5. - 1.5/5.*tanh((r-95.)/1.2));
+        value = 1.475 + 0.4 * tanh(6.8*((theta - pi/2) - (15*deg + angle))) * (3.5/5. - 1.5/5.*tanh((r-95*AU)/1.2/AU));
     }
 
 //     for(int i=0;i<9;i++){
@@ -36,13 +37,13 @@ const double particle::Wind(){
 //         cout << a << "   " << 1.475 + 0.4 * tanh(6.8*((a - 1.*pi/2.) - (15. + angle)/180.*pi)) * (3.5/5. - 1.5/5.*tanh((r-95.)/1.2)) << endl;
 //     }
 // getchar();
-    return value * 400.;
+    return value * 400 * (km/sec);
 }
 
 const double particle::Theta_S(){
     double value;
-    value = asin(sin(angle*pi/180.)*sin(Omega*r*AU/400.)/0.8354);
-// cout << "theta_s :  " << value << "   " << sin(Omega*r*AU/400.) << endl;
+    value = asin(sin(angle)*sin(Omega*r/(400*km/sec))/0.8354);
+// cout << "theta_s :  " << value << "   " << sin(Omega*r/(400*km/sec))) << endl;
 // getchar();
     return value;
 }
@@ -57,23 +58,18 @@ const double particle::Heav(){
 }
 
 const double particle::B_r(const double &heaviside){
-    double value;
-    value = B0 * heaviside * polarity / pow(r, 2.);
-
-    return value;
+    const double r0 = 1 * AU;
+    return B0 * heaviside * polarity / pow(r0/r, 2.);
 }
 
 const double particle::B_p(const double &heaviside){
-    double value;
-    value = -1. * B0 * r * Omega *sin(theta) * heaviside * polarity / Vs;
-
-    return value;
+    return -1. * B0 * r * Omega *sin(theta) * heaviside * polarity / Vs;
 }
 
 const double particle::K_rr(){
-    double kx = k_n * D * pow(Ek, indexA);
+    double kx = D * pow(Ek, indexA);
     double ky = 0.02 * kx;
-    double kr = kx * pow(cos(psy), 2.) + ky * pow(sin(psy), 2.);
+    double kr = kx * pow(cos(psi), 2.) + ky * pow(sin(psi), 2.);
 
     //     cout << "VD :  " << kx << "  " << D << "  " << ky << "  " <<  pow(Ek, indexA)<< endl;
     // getchar();
@@ -82,15 +78,13 @@ const double particle::K_rr(){
 }
 
 const double particle::K_tt(){
-    double kx = k_n * D * pow(Ek, indexA);
+    double kx = D * pow(Ek, indexA);
     double ky = 0.02 * kx;
     double kz;
-    if(theta < pi/2. && 0 < theta){
-        kz = ky * (2. - 1.*tanh(8*((theta + (- 90. + 35.)*pi/180.))));
-    }
-    else if(pi/2.<theta && theta<pi){
-        kz = ky * (2. + 1.*tanh(8*((theta + (- 90. - 35.)*pi/180.))));
-    }
+    if(theta < pi/2. && 0 < theta)
+        kz = ky * (2. - 1.*tanh(8*((theta + (- 90. + 35.)*deg))));
+    else if(pi/2.<theta && theta<pi)
+        kz = ky * (2. + 1.*tanh(8*((theta + (- 90. - 35.)*deg))));
 
 // cout << "VD :  " << ky<< "  " << kz << "  " << (2. + 1.*tanh(8*((theta + (- 90. - 35.)*pi/180.)))) << endl;
 
@@ -100,7 +94,7 @@ const double particle::K_tt(){
 }
 
 const double particle::K_pp(){
-    double kx = k_n * D * pow(Ek, indexA);
+    double kx = D * pow(Ek, indexA);
     double ky = 0.02 * kx;
 
     return ky;
@@ -122,31 +116,37 @@ void particle::step() {
     while(r<boundary || record_T<pow(10.,10.)){
         record_T += dt;
 
-        rigidity = A/Z * sqrt(Ek*(Ek + 2.*E0));
-        M_p = sqrt(Ek*(Ek + 2.*E0));
-        V_p = sqrt(1. - 1./pow(Ek/E0+1., 2.)) * light;
-        Vs = Wind()/AU;
+        M_p = sqrt(Ek*(Ek + 2*mass));
+        rigidity = A/Z * M_p;
+        V_p = M_p/(Ek + mass) * light;
+        Vs = Wind();
 
         heaviside = Heav();
         Br = B_r(heaviside);
         Bp = B_p(heaviside);
-        psy = atan(fabs(Bp/Br)); 
+        psi = atan(fabs(Bp/Br)); 
         
         
         k_rr = K_rr();
         k_tt = K_tt();
         k_pp = K_pp();
 
-
+        double r0 = 1.0 * AU;
         double gamma = r*Omega*sin(theta)/Vs;
-        double drift = 2.*M_p*pow(10.,6.)*V_p/light*r*AU/3./(4.7/5.*pow(10.,21.)*B0)/AU;
+        double drift = 2 * M_p * V_p * r / (3 * Z * e * B0 * r0 * r0 * light);
+         //2.*(M_p/MeV)*pow(10.,6.)*(V_p/(AU/sec))/(light/(AU/sec))*(r/AU)/3./(4.7/5.*pow(10.,21.)*B0);
+         // 我用统一单位计算之后，和你的表达结果对不上，估计我们要讨论一下
+
         Vdr_gc = drift/pow(1+gamma*gamma, 2.) * heaviside * (-1.*gamma/ tan(theta));
         Vdp_gc = drift/pow(1+gamma*gamma, 2.) * heaviside * (2. + gamma*gamma) * gamma;
         Vdt_gc = drift/pow(1+gamma*gamma, 2.) * heaviside * gamma*gamma / tan(theta);
-// cout << "VD :  " << drift<< "  " << Vdr_gc << "  " << Vdp_gc << "  " << Vdt_gc << endl;
+        cout << "Z e B0: " << Z << " " <<  e << " " << B0 << endl;
+        cout << "E_k: " << Ek / GeV << " " << mass / GeV << " " << Z << " " << Z << " " << A << endl;
+        cout << "momentum : " << M_p / GeV << " " << V_p / (km/sec) << " " << Z << " " << Z << " " << A << endl;
+ cout << "VD :  " << drift / (m/sec) << "  " << Vdr_gc / (km/sec) << "  " << Vdp_gc / (km/sec) << "  " << Vdt_gc / (km/sec) << endl;
+         exit(0);
 //         getchar();
         double Vd = drift/(1+gamma*gamma) ;
-
 
 
 
@@ -154,7 +154,7 @@ void particle::step() {
 
 
         double dw = gen();
-        double d_HCS = get_HCS_distance();
+        double d_HCS = get_HCS_distance(); // 这个函数我之后填，目前我连HCS的函数形式都没找着
 
         r += (-1.*Vs - Vdr_gc - Vdr_HCS + 2./r) * dt
             + sqrt(2. * k_rr * dt) * dw;
@@ -165,7 +165,7 @@ void particle::step() {
         phi += (-1.*Vdp_gc - Vdp_HCS) / (r * sin(theta)) * dt
                 + sqrt(2.*k_pp*dt) * dw / (r * sin(theta));
 
-        Ek += 2.*V_p / (3.*r) * (Ek*Ek + 2.*Ek*E0) / (Ek + E0) * dt;
+        Ek += 2.*V_p / (3.*r) * (Ek*Ek + 2.*Ek*mass) / (Ek + mass) * dt;
 
         if(r<0.) {r = 0.; break;}
 

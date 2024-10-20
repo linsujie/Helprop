@@ -65,6 +65,7 @@ class particle {
     const double Heav();                                        //get heaviside function
     const double B_r(const double &heaviside);                  //radial magnetic field function
     const double B_p(const double &heaviside);                  //azimuthal magnetic field function
+    double get_HCS_distance() const;
 
     const double K_rr();
     const double K_tt();
@@ -77,7 +78,7 @@ class particle {
     double V_p;                                                 // velocity of praticle in AU/s
     double r = 1. + pow(10.,-10.);                              // radial distance in AU
     double theta = pi*90./180.+pow(10.,-10.);
-    double phy = pow(10.,-10.);
+    double phi = pow(10.,-10.);
 
 
 

@@ -106,6 +106,10 @@ const double particle::K_pp(){
     return ky;
 }
 
+double particle::get_HCS_distance() const {
+    return 0;
+}
+
 void particle::step() {
     random_device rd;
     mt19937 gen(rd());
@@ -150,6 +154,7 @@ void particle::step() {
 
 
         double dw = gen();
+        double d_HCS = get_HCS_distance();
 
         r += (-1.*Vs - Vdr_gc - Vdr_HCS + 2./r) * dt
             + sqrt(2. * k_rr * dt) * dw;
@@ -157,18 +162,18 @@ void particle::step() {
         theta += (-1.*Vdt_gc/r + 1./(r*r*sin(theta))*cos(theta)*k_tt) * dt 
                 + 1./r * sqrt(2.*k_tt*dt) * dw;
 
-        phy += (-1.*Vdp_gc - Vdp_HCS) / (r * sin(theta)) * dt
+        phi += (-1.*Vdp_gc - Vdp_HCS) / (r * sin(theta)) * dt
                 + sqrt(2.*k_pp*dt) * dw / (r * sin(theta));
 
         Ek += 2.*V_p / (3.*r) * (Ek*Ek + 2.*Ek*E0) / (Ek + E0) * dt;
 
         if(r<0.) {r = 0.; break;}
 
-        if(theta<0.) {theta = fabs(theta); phy += pi;}
-        else if(pi<theta) {theta = 2.*pi - theta; phy += pi;}
+        if(theta<0.) {theta = fabs(theta); phi += pi;}
+        else if(pi<theta) {theta = 2.*pi - theta; phi += pi;}
 
-        if(phy<0.) phy = 2.*pi - phy;
-        else if(2.*pi<phy) phy -= 2.*pi;
+        if(phi<0.) phi = 2.*pi - phi;
+        else if(2.*pi<phi) phi -= 2.*pi;
     }
 
 }

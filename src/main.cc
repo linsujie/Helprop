@@ -119,7 +119,7 @@ This Routine is used to simulate the modulation of particle within heliosphere.
       -B B0, --B0 B0                    The magnetic strength around the Earth in nT [default: 5].
       -p POLARITY, --polarity POLARITY  The direction polarity of the magnetic field [default: 1].
       -a ANGLE, --angle ANGLE           Tilt angle of HCS in deg [default: -35].
-      -D D, --D D                       Diffusion factor in unit AU^2/s [default: 84.43].
+      -D D, --D D                       Diffusion factor in unit 1e22 cm^2/s [default: 5].
       --indexA INDEXA                   Diffusion index a [default: 2].
       --ekins EKINS                     The ekin assigned in format min,max,nbin in GeV, this option would only act when no inspec is assigned [default: 0.1,10,40].
 )";

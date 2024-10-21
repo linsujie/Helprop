@@ -11,7 +11,7 @@ particle::particle(const map<string, docopt::value> &args){
     B0 = fargs("--B0") * nT;
     polarity = args.at("--polarity").asLong();
     angle = fargs("--angle") * deg;
-    D = fargs("--D") * AU * AU / sec;
+    D = fargs("--D") * 1e22 * cm * cm / sec;
     indexA = fargs("--indexA");
 
     Ek = mass;
@@ -67,7 +67,7 @@ const double particle::B_p(const double &heaviside){
 }
 
 const double particle::K_rr(){
-    double kx = D * pow(Ek, indexA);
+    double kx = D * pow(Ek/GeV, indexA);
     double ky = 0.02 * kx;
     double kr = kx * pow(cos(psi), 2.) + ky * pow(sin(psi), 2.);
 
@@ -78,7 +78,7 @@ const double particle::K_rr(){
 }
 
 const double particle::K_tt(){
-    double kx = D * pow(Ek, indexA);
+    double kx = D * pow(Ek/GeV, indexA);
     double ky = 0.02 * kx;
     double kz;
     if(theta < pi/2. && 0 < theta)
@@ -94,7 +94,7 @@ const double particle::K_tt(){
 }
 
 const double particle::K_pp(){
-    double kx = D * pow(Ek, indexA);
+    double kx = D * pow(Ek/GeV, indexA);
     double ky = 0.02 * kx;
 
     return ky;
@@ -140,11 +140,9 @@ void particle::step() {
         Vdr_gc = drift/pow(1+gamma*gamma, 2.) * heaviside * (-1.*gamma/ tan(theta));
         Vdp_gc = drift/pow(1+gamma*gamma, 2.) * heaviside * (2. + gamma*gamma) * gamma;
         Vdt_gc = drift/pow(1+gamma*gamma, 2.) * heaviside * gamma*gamma / tan(theta);
-        cout << "Z e B0: " << Z << " " <<  e << " " << B0 << endl;
-        cout << "E_k: " << Ek / GeV << " " << mass / GeV << " " << Z << " " << Z << " " << A << endl;
-        cout << "momentum : " << M_p / GeV << " " << V_p / (km/sec) << " " << Z << " " << Z << " " << A << endl;
- cout << "VD :  " << drift / (m/sec) << "  " << Vdr_gc / (km/sec) << "  " << Vdp_gc / (km/sec) << "  " << Vdt_gc / (km/sec) << endl;
-         exit(0);
+        //cout << "Z e B0: " << Z << " " <<  e << " " << B0 << " " << r / AU << " " << r0 / AU << " " << light << " " << k_rr / (cm * cm / sec) << " " << (-1.*Vs - Vdr_gc - Vdr_HCS) * dt / AU << " " << sqrt(k_rr * dt) / (AU) << endl;
+        //cout << "momentum : " << M_p / GeV << " " << V_p / (km/sec) << " " << Z << " " << Z << " " << A << endl;
+        //cout << "VD :  " << drift / (km/sec) << "  " << Vdr_gc / (km/sec) << "  " << Vdp_gc / (km/sec) << "  " << Vdt_gc / (km/sec) << endl;
 //         getchar();
         double Vd = drift/(1+gamma*gamma) ;
 
@@ -153,11 +151,14 @@ void particle::step() {
         double L0, Rg;
 
 
-        double dw = gen();
+        double dw = dist(gen);
         double d_HCS = get_HCS_distance(); // 这个函数我之后填，目前我连HCS的函数形式都没找着
 
-        r += (-1.*Vs - Vdr_gc - Vdr_HCS + 2./r) * dt
+        //r += (-1.*Vs - Vdr_gc - Vdr_HCS + 2./r) * dt
+        cout << "rbefore: " << r / AU << endl;
+        r += (-1.*Vs - Vdr_gc - Vdr_HCS) * dt
             + sqrt(2. * k_rr * dt) * dw;
+        cout << "rafter: " << r / AU << " " << (-1.*Vs - Vdr_gc - Vdr_HCS) * dt / AU << " " << sqrt(2. * k_rr * dt) / AU << " " << dw << endl;
 
         theta += (-1.*Vdt_gc/r + 1./(r*r*sin(theta))*cos(theta)*k_tt) * dt 
                 + 1./r * sqrt(2.*k_tt*dt) * dw;

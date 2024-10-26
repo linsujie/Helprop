@@ -30,11 +30,11 @@ const double particle::Wind(){
 
 //     for(int i=0;i<9;i++){
 //         double a = (5+10*i)*pi/180;
-//         cout << a << "   " << 1.475 - 0.4 * tanh(6.8*((a - 1.*pi/2.) + (15. + angle)/180.*pi)) * (3.5/5. - 1.5/5.*tanh((r-95.)/1.2)) << endl;
+//         cout << a << "   " << 1.475 - 0.4 * tanh(6.8*((a - pi/2.) + (15.*deg + angle))) * (3.5/5. - 1.5/5.*tanh((r-95*AU)/1.2/AU)) << endl;
 //     }
 //     for(int i=9;i<18;i++){
 //         double a = (5+10*i)*pi/180;
-//         cout << a << "   " << 1.475 + 0.4 * tanh(6.8*((a - 1.*pi/2.) - (15. + angle)/180.*pi)) * (3.5/5. - 1.5/5.*tanh((r-95.)/1.2)) << endl;
+//         cout << a << "   " << 1.475 + 0.4 * tanh(6.8*((a - pi/2.) - (15.*deg + angle))) * (3.5/5. - 1.5/5.*tanh((r-95*AU)/1.2/AU)) << endl;
 //     }
 // getchar();
     return value * 400 * (km/sec);
@@ -42,7 +42,7 @@ const double particle::Wind(){
 
 const double particle::Theta_S(){
     double value;
-    value = asin(sin(angle)*sin(Omega*r/(400*km/sec))/0.8354);
+    value = pi/2. + asin(sin(angle)*sin(phi + Omega*r/(400*km/sec))/0.8354);
 // cout << "theta_s :  " << value << "   " << sin(Omega*r/(400*km/sec))) << endl;
 // getchar();
     return value;
@@ -51,18 +51,22 @@ const double particle::Theta_S(){
 const double particle::Heav(){
     double theta_s = Theta_S();
     double value;
-    if(theta<pi/2.-theta_s) value = 1.;
-    else if(pi/2.-theta_s<theta) value = -1.;
+    if(theta<theta_s) value = 1.;
+    else if(theta_s<theta) value = -1.;
 
     return value;
 }
 
 const double particle::B_r(const double &heaviside){
     const double r0 = 1 * AU;
+    // std::cout << "D:   " << heaviside << "   " << polarity << "   " << r << "   " << r0 << std::endl;
+    //     getchar();
     return B0 * heaviside * polarity / pow(r0/r, 2.);
 }
 
 const double particle::B_p(const double &heaviside){
+    // std::cout << "D:   " << Omega << "   " << sin(theta) << "   " << Vs << "   " << polarity<< std::endl;
+    // getchar();
     return -1. * B0 * r * Omega *sin(theta) * heaviside * polarity / Vs;
 }
 
@@ -71,7 +75,7 @@ const double particle::K_rr(){
     double ky = 0.02 * kx;
     double kr = kx * pow(cos(psi), 2.) + ky * pow(sin(psi), 2.);
 
-    //     cout << "VD :  " << kx << "  " << D << "  " << ky << "  " <<  pow(Ek, indexA)<< endl;
+    // cout << "VD :  " << kx << "  " << D << "  " << ky << "  " <<  pow(Ek/GeV, indexA) << "   " << kr << endl;
     // getchar();
 
     return kr;
@@ -104,6 +108,8 @@ double particle::get_HCS_distance() const {
     return 0;
 }
 
+
+
 void particle::step() {
     random_device rd;
     mt19937 gen(rd());
@@ -116,24 +122,37 @@ void particle::step() {
     while(r<boundary || record_T<pow(10.,10.)){
         record_T += dt;
 
-        M_p = sqrt(Ek*(Ek + 2*mass));
+        M_p = sqrt(Ek*(Ek + 2.*mass));
         rigidity = A/Z * M_p;
         V_p = M_p/(Ek + mass) * light;
         Vs = Wind();
-
         heaviside = Heav();
         Br = B_r(heaviside);
         Bp = B_p(heaviside);
         psi = atan(fabs(Bp/Br)); 
+        // std::cout << "D:   " << M_p/GeV << "   " << V_p/AU << "   " << Vs/1000. << "   " << Ek/GeV << "   " << mass/GeV << std::endl;
+        // getchar();
+
+        
+
+        double B = sqrt(Br*Br + Bp*Bp);
+
+        //  std::cout << "D:   " << heaviside << "   " << Br << "   " << Bp << "   " << B << std::endl;
+        // getchar();
         
         
         k_rr = K_rr();
         k_tt = K_tt();
         k_pp = K_pp();
+        //          std::cout << "D:   " << k_rr << "   " << k_pp << "   " << k_tt << std::endl;
+        // getchar();
 
         double r0 = 1.0 * AU;
         double gamma = r*Omega*sin(theta)/Vs;
-        double drift = 2 * M_p * V_p * r / (3 * Z * e * B0 * r0 * r0 * light);
+        double drift ;//= 2 * M_p * V_p * r / (3 * Z * e * B0 * r0 * r0 * light);
+        drift = 2. * M_p * V_p / light * r / ( 3. * Z * e * 4.7 * 1e21 * cm * cm * Gauss / ( 5 * 1e-5 * Gauss ) * B );
+        // std::cout << "D:   " << drift << "   " << V_p << std::endl;
+        // getchar();
          //2.*(M_p/MeV)*pow(10.,6.)*(V_p/(AU/sec))/(light/(AU/sec))*(r/AU)/3./(4.7/5.*pow(10.,21.)*B0);
          // 我用统一单位计算之后，和你的表达结果对不上，估计我们要讨论一下
 
@@ -142,31 +161,45 @@ void particle::step() {
         Vdt_gc = drift/pow(1+gamma*gamma, 2.) * heaviside * gamma*gamma / tan(theta);
         //cout << "Z e B0: " << Z << " " <<  e << " " << B0 << " " << r / AU << " " << r0 / AU << " " << light << " " << k_rr / (cm * cm / sec) << " " << (-1.*Vs - Vdr_gc - Vdr_HCS) * dt / AU << " " << sqrt(k_rr * dt) / (AU) << endl;
         //cout << "momentum : " << M_p / GeV << " " << V_p / (km/sec) << " " << Z << " " << Z << " " << A << endl;
-        //cout << "VD :  " << drift / (km/sec) << "  " << Vdr_gc / (km/sec) << "  " << Vdp_gc / (km/sec) << "  " << Vdt_gc / (km/sec) << endl;
-//         getchar();
+        // std::cout << "VD :  " << gamma << "  " << Vdr_gc << "  " << Vdp_gc << "  " << Vdt_gc << "   " << drift << std::endl;
+        // std::cout << "VD :  " << Vdp_gc << "  " << drift << "  " << pow(1+gamma*gamma, 2.) << "  " << heaviside << "   " << (2. + gamma*gamma)
+        // << "   "  << std::endl;
+        // getchar();
         double Vd = drift/(1+gamma*gamma) ;
 
-
-
         double L0, Rg;
-
 
         double dw = dist(gen);
         double d_HCS = get_HCS_distance(); // 这个函数我之后填，目前我连HCS的函数形式都没找着
 
         //r += (-1.*Vs - Vdr_gc - Vdr_HCS + 2./r) * dt
-        cout << "rbefore: " << r / AU << endl;
-        r += (-1.*Vs - Vdr_gc - Vdr_HCS) * dt
+        // cout << "rbefore: " << r / AU << endl;
+        double ro = r;
+        double theta0 = theta;
+        double phi0 = phi;
+        r += (-1.*Vs - Vdr_gc - Vdr_HCS + 2.*k_rr/r) * dt
             + sqrt(2. * k_rr * dt) * dw;
-        cout << "rafter: " << r / AU << " " << (-1.*Vs - Vdr_gc - Vdr_HCS) * dt / AU << " " << sqrt(2. * k_rr * dt) / AU << " " << dw << endl;
+        // std::cout << "r:   " << Vs << "   " << Vdr_gc<< "   " << 2.*k_rr/r
+        // << "   " << sqrt(2. * k_rr * dt) << "   " << k_rr << std::endl;
+        // getchar();
+        // cout << "rafter: " << r / AU << " " << (-1.*Vs - Vdr_gc - Vdr_HCS) * dt / AU << " " << sqrt(2. * k_rr * dt) / AU << " " << dw << endl;
 
-        theta += (-1.*Vdt_gc/r + 1./(r*r*sin(theta))*cos(theta)*k_tt) * dt 
+        theta += (-1.*Vdt_gc/r - Vdt_HCS/r + 1./(r*r*sin(theta))*cos(theta)*k_tt) * dt 
                 + 1./r * sqrt(2.*k_tt*dt) * dw;
+        // std::cout << "theta:   " << Vdt_gc << "   " << 1./(r*r*sin(theta))*cos(theta)*k_tt*r 
+        // << "   " << 1./r * sqrt(2.*k_tt*dt) << "   " << k_tt << std::endl;
+        // getchar();
 
         phi += (-1.*Vdp_gc - Vdp_HCS) / (r * sin(theta)) * dt
                 + sqrt(2.*k_pp*dt) * dw / (r * sin(theta));
+        // std::cout << "phi:   " << (-1.*Vdp_gc - Vdp_HCS) / (r * sin(theta)) * dt 
+        // << "   " << sqrt(2.*k_pp*dt) * dw / (r * sin(theta)) << "   " << k_pp << std::endl;
+        // getchar();
 
-        Ek += 2.*V_p / (3.*r) * (Ek*Ek + 2.*Ek*mass) / (Ek + mass) * dt;
+        // std::cout << "D:   " << r-r0 << "   " << (theta-theta0)*r<< "   " << (phi-phi0)*r*sin(theta) << std::endl;
+        // getchar();
+
+        Ek += 2.*Vs / (3.*r) * (Ek*Ek + 2.*Ek*mass) / (Ek + mass) * dt;
 
         if(r<0.) {r = 0.; break;}
 

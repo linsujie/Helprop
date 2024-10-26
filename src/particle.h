@@ -20,9 +20,9 @@ namespace Unit {
 
   const double c_speed = 2.99792e8 * m / sec;
 
-  const double g = 1;
-  const double kg = 1e3 * g;
-  const double ton = 1e6 * g;
+  const double kg = 1;
+  const double g = 1e-3 * kg;
+  const double ton = 1e3 * kg;
 
   const double J = 1 * kg * m * m / sec / sec;
 
@@ -31,6 +31,7 @@ namespace Unit {
 
   const double T = 1;
   const double nT = 1e-9 * T;
+  const double Gauss = 1e-4 * T;
 
   const double GeV = 1.602177e-10 * J;
   const double MeV = 1e-3 * GeV;
@@ -82,9 +83,9 @@ class particle {
     double Vdr_gc;                                              //drift to radial direction
     double Vdp_gc;                                              //drift to azimuthal direction
     double Vdt_gc;                                              //drift to pole direction
-    double Vdr_HCS;                                             //drift at the HCS for thress direction
-    double Vdp_HCS;
-    double Vdt_HCS;
+    double Vdr_HCS = 0;                                             //drift at the HCS for thress direction
+    double Vdp_HCS = 0;
+    double Vdt_HCS = 0;
 
 
 
@@ -112,7 +113,7 @@ class particle {
     double M_p;                                                 // momentum of particle
     double V_p;                                                 // velocity of praticle
     double r = (1. + pow(10.,-10.))*Unit::AU;                              // radial distance
-    double theta = Unit::pi/2+pow(10.,-10.);
+    double theta = Unit::deg*90.+pow(10.,-10.);
     double phi = pow(10.,-10.);
 
 

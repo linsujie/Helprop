@@ -87,13 +87,13 @@ vector<double> count_distribution(const vector<particle>& Particle, const vector
         double x1 = log(ekin[k + 1]) / 2. - log(ekin[k]) / 2.;
         if (log(ekin[k]) - x1 <= log(eng) && log(eng) < log(ekin[k]) + x1)
           bin[k] += 1. / number;
-      } 
+      }
       else if (0 < k && k < ekin.size() - 1) {
         double x0 = log(ekin[k - 1]) / 2. + log(ekin[k]) / 2.;
         double x1 = log(ekin[k + 1]) / 2. + log(ekin[k]) / 2.;
         if (x0 <= log(eng) && log(eng) < x1)
           bin[k] += 1. / number;
-      } 
+      }
       else if (k == ekin.size() - 1) {
         double x1 = log(ekin[k]) / 2. - log(ekin[k - 1]) / 2.;
         if (log(ekin[k]) - x1 <= log(eng) && log(eng) < log(ekin[k]) + x1)

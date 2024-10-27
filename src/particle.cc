@@ -1,4 +1,5 @@
 #include "particle.h"
+#include "nlopt.hpp"
 
 using namespace std;
 using namespace Unit;
@@ -15,6 +16,9 @@ particle::particle(const map<string, docopt::value>& args) {
   angle = fargs("--angle") * deg;
   D = fargs("--D") * 1e22 * cm * cm / sec;
   indexA = fargs("--indexA");
+
+  theta = pi / 2.0 + 1e-6;
+  Vs_eq = Wind();
 
   Ek = mass;
 }
@@ -115,8 +119,54 @@ const double particle::K_pp() {
   return ky;
 }
 
+double particle::HCS_rphi_z(const double &r, const double &phi) const {
+  double phi0 = phi + r * Omega / Vs_eq - Omega * (t - t0);
+  double alpha = angle;
+  double tan_theta_cs = tan(alpha) * sin(phi0);
+
+  return r * tan_theta_cs;
+}
+
+double particle::HCS_xy_z(const double &x, const double &y) const {
+  double r = sqrt(x * x + y * y);
+  double phi = atan2(y, x);
+  return HCS_rphi_z(r, phi);
+}
+
+struct nlopt_info {
+  double x, y, z;
+  const particle *p;
+};
+double distance_to_point(const std::vector<double> &x, std::vector<double> &grad, void *voidp) {
+  nlopt_info *info = reinterpret_cast<nlopt_info*>(voidp);
+  double z = info->p->HCS_xy_z(x[0], x[1]);
+
+  double dx = x[0] - info->x;
+  double dy = x[1] - info->y;
+  double dz = z - info->z;
+  return sqrt(dx * dx + dy * dy + dz * dz);
+}
+
 double particle::get_HCS_distance() const {
-  return 0;
+  nlopt_info info = { r * sin(theta) * cos(phi), r * sin(theta) * sin(phi), r * cos(theta), this };
+
+  nlopt::opt opt(nlopt::LN_SBPLX, 2);
+  opt.set_min_objective(distance_to_point, &info);
+
+  double dr = pi / Omega * Vs_eq;
+  vector<double> position_hcs_low = { info.x - 2 * dr * cos(phi), info.y - 2 * dr * sin(phi) };
+  vector<double> position_hcs_up = { info.x + 2 * dr * cos(phi), info.y + 2 * dr * sin(phi) };
+  opt.set_lower_bounds(position_hcs_low);
+  opt.set_upper_bounds(position_hcs_up);
+
+  double dlow, dup;
+  vector<double> position_hcs = { info.x - dr * cos(phi) , info.y - dr * sin(phi) };
+  opt.optimize(position_hcs, dlow);
+
+  position_hcs = { info.x + dr * cos(phi), info.y + dr * sin(phi) };
+  opt.optimize(position_hcs, dup);
+
+  return fmin(dlow, dup);
 }
 
 void particle::step() {
@@ -181,7 +231,7 @@ void particle::step() {
     double L0, Rg;
 
     double dw = dist(gen);
-    double d_HCS = get_HCS_distance();  // 这个函数我之后填，目前我连HCS的函数形式都没找着
+    double d_HCS = get_HCS_distance();
 
     // r += (-1.*Vs - Vdr_gc - Vdr_HCS + 2./r) * dt
     //  cout << "rbefore: " << r / AU << endl;

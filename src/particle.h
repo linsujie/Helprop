@@ -109,8 +109,8 @@ class particle {
     const double K_tt();
     const double K_pp();
 
-    double HCS_rphi_z(const double &r, const double &phi) const;
-    double HCS_xy_z(const double &x, const double &y) const;
+    void HCS_rphi(const double &r, const double &phi, double& x, double& y, double& z) const;
+    //double HCS_xy_z(const double &x, const double &y) const;
 
     double Ek;                                                  //kinetic energy
     double M_p;                                                 // momentum of particle

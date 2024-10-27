@@ -119,19 +119,24 @@ const double particle::K_pp() {
   return ky;
 }
 
-double particle::HCS_rphi_z(const double &r, const double &phi) const {
+void particle::HCS_rphi(const double &r, const double &phi, double& x, double& y, double& z) const {
   double phi0 = phi + r * Omega / Vs_eq - Omega * (t - t0);
   double alpha = angle;
-  double tan_theta_cs = tan(alpha) * sin(phi0);
+  double cot_theta_cs = tan(alpha) * sin(phi0);
 
-  return r * tan_theta_cs;
+  double sin_theta_cs = 1 / sqrt(1. + cot_theta_cs * cot_theta_cs);
+  double cos_theta_cs = cot_theta_cs * sin_theta_cs;
+
+  x = r * sin_theta_cs * cos(phi);
+  y = r * sin_theta_cs * sin(phi);
+  z = r * cos_theta_cs;
 }
 
-double particle::HCS_xy_z(const double &x, const double &y) const {
-  double r = sqrt(x * x + y * y);
-  double phi = atan2(y, x);
-  return HCS_rphi_z(r, phi);
-}
+//double particle::HCS_xy_z(const double &x, const double &y) const {
+//  double r = sqrt(x * x + y * y);
+//  double phi = atan2(y, x);
+//  return HCS_rphi_z(r, phi);
+//}
 
 struct nlopt_info {
   double x, y, z;
@@ -139,34 +144,57 @@ struct nlopt_info {
 };
 double distance_to_point(const std::vector<double> &x, std::vector<double> &grad, void *voidp) {
   nlopt_info *info = reinterpret_cast<nlopt_info*>(voidp);
-  double z = info->p->HCS_xy_z(x[0], x[1]);
 
-  double dx = x[0] - info->x;
-  double dy = x[1] - info->y;
-  double dz = z - info->z;
-  return sqrt(dx * dx + dy * dy + dz * dz);
+  auto distance = [&](double r, double phi) {
+    double vx, vy, vz;
+    info->p->HCS_rphi(r, phi, vx, vy, vz);
+    return sqrt((vx - info->x) * (vx - info->x) + (vy - info->y) * (vy - info->y) + (vz - info->z) * (vz - info->z));
+  };
+
+  double d = distance(x[0], x[1]);
+  double ddr = distance(x[0] + 1e-5 * AU, x[1]);
+  double ddp = distance(x[0], x[1] + 1e-5);
+
+  //cout << x[0] / AU << " " << x[1] << " " << d / AU << " dv/dx = " << (ddr - d) / (1e-5 * AU) << "  dv/dp = " << (ddp - d) / (1e-5) / AU << endl;
+
+  grad = { (ddr - d) / (1e-5 * AU), (ddp - d) / (1e-5) };
+
+  return d;
 }
 
 double particle::get_HCS_distance() const {
   nlopt_info info = { r * sin(theta) * cos(phi), r * sin(theta) * sin(phi), r * cos(theta), this };
 
-  nlopt::opt opt(nlopt::LN_SBPLX, 2);
+  nlopt::opt opt(nlopt::LD_MMA, 2);
   opt.set_min_objective(distance_to_point, &info);
+  opt.set_xtol_rel(1e-8);
 
-  double dr = pi / Omega * Vs_eq;
-  vector<double> position_hcs_low = { info.x - 2 * dr * cos(phi), info.y - 2 * dr * sin(phi) };
-  vector<double> position_hcs_up = { info.x + 2 * dr * cos(phi), info.y + 2 * dr * sin(phi) };
-  opt.set_lower_bounds(position_hcs_low);
-  opt.set_upper_bounds(position_hcs_up);
+  double dr = pi / Omega * Vs_eq / 2;
+  vector<double> position_hcs, position_hcs_low, position_hcs_up;
+  auto assign_region = [&](double v) {
+    position_hcs = { fmax(1e-5, r + v), phi };
+    position_hcs_low = { fmax(0, position_hcs[0] - dr), position_hcs[1] - pi };
+    position_hcs_up = { position_hcs[0] + dr, position_hcs[1] + pi };
+    opt.set_lower_bounds(position_hcs_low);
+    opt.set_upper_bounds(position_hcs_up);
+  };
 
-  double dlow, dup;
-  vector<double> position_hcs = { info.x - dr * cos(phi) , info.y - dr * sin(phi) };
+  double dlow, dmid, dup;
+
+  assign_region(-dr);
   opt.optimize(position_hcs, dlow);
 
-  position_hcs = { info.x + dr * cos(phi), info.y + dr * sin(phi) };
+  assign_region(0);
+  opt.optimize(position_hcs, dmid);
+
+  assign_region(dr);
   opt.optimize(position_hcs, dup);
 
-  return fmin(dlow, dup);
+  double vx, vy, vz;
+  HCS_rphi(r, phi, vx, vy, vz);
+  double sign = info.z > vz ? 1 : -1;
+
+  return sign * fmin(fmin(dlow, dup), dmid);
 }
 
 void particle::step() {

@@ -87,13 +87,13 @@ vector<double> count_distribution(const vector<particle>& Particle, const vector
         double x1 = log(ekin[k + 1]) / 2. - log(ekin[k]) / 2.;
         if (log(ekin[k]) - x1 <= log(eng) && log(eng) < log(ekin[k]) + x1)
           bin[k] += 1. / number;
-      }
+      } 
       else if (0 < k && k < ekin.size() - 1) {
         double x0 = log(ekin[k - 1]) / 2. + log(ekin[k]) / 2.;
         double x1 = log(ekin[k + 1]) / 2. + log(ekin[k]) / 2.;
         if (x0 <= log(eng) && log(eng) < x1)
           bin[k] += 1. / number;
-      }
+      } 
       else if (k == ekin.size() - 1) {
         double x1 = log(ekin[k]) / 2. - log(ekin[k - 1]) / 2.;
         if (log(ekin[k]) - x1 <= log(eng) && log(eng) < log(ekin[k]) + x1)
@@ -119,7 +119,7 @@ This Routine is used to simulate the modulation of particle within heliosphere.
       --number NUMBER                   The simulation particle number in each bin[default: 3000].
       -m MASS, --mass MASS              The particle mass in GeV [default: 0.93827].
       -B B0, --B0 B0                    The magnetic strength around the Earth in nT [default: 5].
-      -p POLARITY, --polarity POLARITY  The direction polarity of the magnetic field [default: 1].
+      -p POLARITY, --polarity POLARITY  The direction polarity of the magnetic field [default: -1].
       -a ANGLE, --angle ANGLE           Tilt angle of HCS in deg [default: 35].
       -D D, --D D                       Diffusion factor in unit 1e22 cm^2/s [default: 5].
       --indexA INDEXA                   Diffusion index a [default: 2].

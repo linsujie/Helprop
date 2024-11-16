@@ -63,6 +63,7 @@ vector<particle> simulating(const particle& template_particle, int number, int t
     for (int i = iplow; i < ipup; i++) {
       Particle[i] = template_particle;
       Particle[i].step();
+      cerr << "particle " << i << endl;
     }
   };
 

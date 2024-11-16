@@ -45,7 +45,7 @@ namespace Unit {
   const double epsilon_0 = 8.854e-12 * C / (V * m); //permittivity of free space in F/m
 };
 class particle {
-    private:
+    public:
 
     double light = 2.9979e8 * Unit::m / Unit::sec;                    //the speed of light in AU/s
     //double k_n = 1.*pow(10,12.)/(AU*AU);                        //normalization diffusion coefficient in AU^2/s corresponging to 10^22 cm^2/s
@@ -109,6 +109,7 @@ class particle {
     const double B_r(const double &heaviside);                  //radial magnetic field function
     const double B_p(const double &heaviside);                  //azimuthal magnetic field function
     double get_HCS_distance() const;
+    double get_HCS_distance_new() const;
 
     const double K_rr();
     const double K_tt();

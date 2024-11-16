@@ -215,6 +215,10 @@ double particle::get_HCS_distance() const {
   return sign * fmin(fmin(dlow, dup), dmid);
 }
 
+double particle::get_HCS_distance_new() const {
+  return 0;
+}
+
 void particle::step() {
     std::ofstream f2;
     f2.open("file3");

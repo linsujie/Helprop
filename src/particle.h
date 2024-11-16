@@ -120,8 +120,8 @@ class particle {
     double Ek;                                                  //kinetic energy
     double M_p;                                                 // momentum of particle
     double V_p;                                                 // velocity of praticle
-    double r = (1)*Unit::AU;                              // radial distance
-    double theta = Unit::deg*(90)+pow(10.,-10.)+1e-5;
+    double r = (1.)*Unit::AU;                              // radial distance
+    double theta = Unit::deg*(90)+pow(10.,-10.);
     double phi = pow(10.,-10.);
 };
 

@@ -6,8 +6,10 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <cassert>
 #include "docopt.h"
 #include "particle.h"
+#include "IO.h"
 
 using namespace std;
 mutex mtx;
@@ -124,14 +126,20 @@ This Routine is used to simulate the modulation of particle within heliosphere.
       -D D, --D D                       Diffusion factor in unit 1e22 cm^2/s [default: 5].
       --indexA INDEXA                   Diffusion index a [default: 2].
       --ekins EKINS                     The ekin assigned in format min,max,nbin in GeV, this option would only act when no inspec is assigned [default: 0.1,10,40].
+      --iostyle IOSTYLE                 Could be TXT, CSV, or BSON [default: TXT].
 )";
 int main(int argc, char* argv[]) {
   std::map<std::string, docopt::value> args = docopt::docopt(USAGE, {argv + 1, argv + argc}, true);
 
+  IO *io = NULL;
+  if (args.at("--iostyle").asString() == "TXT") io = new IO_TXT();
+
+  assert(io != NULL && "IO style not supported");
+
   vector<double> ekin;   // set spectrum energy bin
   vector<double> flux;   // boundary differential flux
   if (bool(args.at("<inspec>")))
-    read_spec(ekin, flux, args.at("<inspec>").asString());
+    io->readspec(args.at("<inspec>").asString(), ekin, flux);
 
   if (ekin.empty())
     ekin = get_ekin(args.at("--ekins").asString());
@@ -159,7 +167,7 @@ int main(int argc, char* argv[]) {
     Ospec.push_back(value);
   }
 
-  cout << "done" << endl;
-
+  if (bool(args.at("<outspec>")))
+    io->writespec(args.at("<outspec>").asString(), ekin, Ospec);
   return 0;
 }

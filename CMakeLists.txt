@@ -12,6 +12,7 @@ INCLUDE_DIRECTORIES(${NLOPT_INCLUDE_DIR})
 
 set(SRC
     ${PROJECT_SOURCE_DIR}/src/particle.cc
+    ${PROJECT_SOURCE_DIR}/src/IO.cc
     ${PROJECT_SOURCE_DIR}/src/main.cc
 )
 

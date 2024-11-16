@@ -261,9 +261,9 @@ void particle::step() {
     double beta = atan(Omega * r * sqrt(fabs(sin(angle) * sin(angle) - cos(cs) * cos(cs))) / (Vs * sin(psi) * sin(cs)));
 
     double Rg = M_p / (B * Z * e * light);
-std::cout << "begin" << r/AU << "  " << theta << "  " << pi/2. << std::endl;
+// std::cout << "begin   " << r/AU << "  " << theta << "  " << phi << std::endl;
     double d_HCS = fabs(get_HCS_distance());
-std::cout << "begin" << std::endl;
+// std::cout << "begin1   " << std::endl;
     double Vns = 0.;
     if(d_HCS<2.*Rg) Vns = (0.457 - 0.412 * d_HCS / Rg + 0.0915 * d_HCS * d_HCS / Rg / Rg) * V_p;//
     
@@ -283,16 +283,18 @@ std::cout << "begin" << std::endl;
     if(3<fabs(dwt)) dwt = dist(gen);
 
     r += (-1. * Vs - Vdr_gc - Vdr_HCS + 2. * k_rr / r) * dt +
-         sqrt(2. * k_rr * dt) * dwr;
+         sqrt(2. * fabs(k_rr) * dt) * dwr;
 
     theta += (-1. * Vdt_gc / r - Vdt_HCS / r +
               1. / (r * r * sin(theta)) * cos(theta) * k_tt) *
                  dt +
-             1. / r * sqrt(2. * k_tt * dt) * dwt;
+             1. / r * sqrt(2. * fabs(k_tt) * dt) * dwt;
 
     phi += (-1. * Vdp_gc - Vdp_HCS) / (r * sin(theta)) * dt +
-           sqrt(2. * k_pp * dt) * dwp / (r * sin(theta));
+           sqrt(2. * fabs(k_pp) * dt) * dwp / (r * sin(theta));
 
+//     std::cout << "test:  " << (-1. * Vdp_gc - Vdp_HCS) / (r * sin(theta)) * dt << "  " << sqrt(2. * fabs(k_pp) * dt) * dwp / (r * sin(theta)) << std::endl;
+// getchar();
     M_p += 2. * Vs / (3. * r) * M_p * M_p / (Ek + mass)  * dt;
     Ek = sqrt(M_p * M_p + mass * mass) - mass;
     if (r < 0.) {
@@ -308,12 +310,12 @@ std::cout << "begin" << std::endl;
       phi += pi;
     }
 
-    if (phi < 0.) phi = 2. * pi - phi;
+    if (phi < 0.) phi = 2. * pi + phi;
     else if (2. * pi < phi) phi -= 2. * pi;
 
     f2 << r/AU << "   " << theta << "   " << phi << std::endl;
     // if(60*60*24*365*1.5<record_T) break;
-    std::cout << r/AU << "  " << theta << std::endl;
+    // std::cout << r/AU << "  " << theta << "  " << phi << std::endl;
   }
   std::cout << "getOne." << std::endl;
   f2.close();

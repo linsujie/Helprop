@@ -217,7 +217,7 @@ double particle::get_HCS_distance() const {
 
 void particle::step() {
     std::ofstream f2;
-    f2.open("file2");
+    f2.open("file3");
 
   random_device rd;
   mt19937 gen(rd());

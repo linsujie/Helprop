@@ -1,12 +1,26 @@
+#include <cassert>
+#include <iomanip>
+
+#include "Vec.hh"
 #include "particle.h"
+#include "fcache.h"
+#include "root_finding.h"
+#include "newton_solver.h"
 #include "nlopt.hpp"
 
 using namespace std;
 using namespace Unit;
 
-particle::particle() {}
 
-particle::particle(const map<string, docopt::value>& args) : hcsform(Jokipii_Thomas) {
+double particle::angle = 45 * deg;
+fcache particle::theta_jokipii_thomas([](double x) { return pi / 2 - asin(sin(angle) * sin(x)); }, 1000000);
+fcache particle::theta_kota_jokipii([](double x) { return pi / 2 - atan(tan(angle) * sin(x)); }, 1000000);
+
+particle::particle() : hcsform(Jokipii_Thomas) {}
+
+particle::particle(const map<string, docopt::value>& args) :
+ hcsform(Jokipii_Thomas)
+{
   auto fargs = [&](const string& key) -> double {
     return stod(args.at(key).asString());
   };
@@ -21,7 +35,6 @@ particle::particle(const map<string, docopt::value>& args) : hcsform(Jokipii_Tho
   Vs_eq = Wind();
 
   Bn = B0 * AU * AU / 1.35883;
-
 //   Ek = mass;
 //   std::cout << "Mass:  " << mass/GeV << "   " << Ek/GeV << std::endl;
 //   getchar();
@@ -55,21 +68,56 @@ const double particle::Wind() {
   return value * 400 * (km / sec);
 }
 
-double particle::Theta_S_Jokipii_Thomas(double r, double phi) const {
-  return pi / 2 - asin(sin(angle) * sin(phi + Omega * r / Vs_eq));
+void particle::r_bound(double r, double phi, double phi0, double& rlow, double& rup) const {
+  double Tr = 2 * pi * Vs_eq / Omega;
+
+  rlow = (phi0 - phi + Omega * (t - t0)) * Vs_eq / Omega;
+  rlow += floor((r - rlow) / Tr) * Tr;
+  rup = rlow + Tr;
 }
-double particle::Theta_S_Kota_Jokipii(double r, double phi) const {
-  double phi0 = phi + r * Omega / Vs_eq - Omega * (t - t0);
-  double alpha = angle;
-  return pi / 2 - atan(tan(alpha) * sin(phi0));
+
+double particle::Theta_S_Jokipii_Thomas(double phi0) const {
+
+  return theta_jokipii_thomas(phi0);
 }
+double particle::Phi0_S_Jokipii_Thomas(double theta) const {
+  double ratio = sin(pi / 2 - theta) / sin(angle);
+  if (ratio >= 1) return pi / 2;
+  else if (ratio <= -1) return -pi / 2;
+
+  return asin(ratio);
+}
+
+double particle::Theta_S_Kota_Jokipii(double phi0) const {
+  //static fcache theta([&](double x) { return pi / 2 - atan(tan(angle) * sin(x)); }, 1000000);
+
+  return theta_kota_jokipii(phi0);
+}
+double particle::Phi0_S_Kota_Jokipii(double theta) const {
+  double ratio = tan(pi / 2 - theta) / tan(angle);
+  if (ratio >= 1) return pi / 2;
+  else if (ratio <= -1) return -pi / 2;
+
+  return asin(ratio);
+}
+
 double particle::Theta_S(double r, double phi) const {
   if (hcsform == Jokipii_Thomas)
     return Theta_S_Jokipii_Thomas(r, phi);
   else if (hcsform == Kota_Jokipii)
     return Theta_S_Kota_Jokipii(r, phi);
 
-  // return 0;
+  assert(false && "hcsform not supported");
+  return 0;
+}
+double particle::Phi0_S(double theta) const {
+  if (hcsform == Jokipii_Thomas)
+    return Phi0_S_Jokipii_Thomas(theta);
+  else if (hcsform == Kota_Jokipii)
+    return Phi0_S_Kota_Jokipii(theta);
+
+  assert(false && "hcsform not supported");
+  return 0;
 }
 
 const double particle::Heav() {
@@ -147,9 +195,12 @@ void particle::HCS_rphi(const double &r, const double &phi, double& x, double& y
 
 struct nlopt_info {
   double x, y, z;
+  double r, phi, theta;
   const particle *p;
 };
+static int iter_d = 0;
 double distance_to_point(const std::vector<double> &x, std::vector<double> &grad, void *voidp) {
+  iter_d++;
   nlopt_info *info = reinterpret_cast<nlopt_info*>(voidp);
 
   auto distance = [&](double r, double phi) {
@@ -159,21 +210,12 @@ double distance_to_point(const std::vector<double> &x, std::vector<double> &grad
     // getchar();
     double vx, vy, vz;
     info->p->HCS_rphi(r, phi, vx, vy, vz);
-    // std::cout << r / AU << " " << phi << " "
-    //  << info->p->Theta_S(r, phi) << " "
-    //  << "  " << sqrt((vx - info->x) * (vx - info->x) + (vy - info->y) * (vy - info->y) + (vz - info->z) * (vz - info->z)) << std::endl;
-    // std:: cout << "  " << info->x << "  " << info->y << "  " << info->z << std::endl;
-    // std::cout << vx << "  " << vy << "  " << vz << std::endl;
-    // std::cout << "Test:  " << r << "  " << phi  << endl;
     return sqrt((vx - info->x) * (vx - info->x) + (vy - info->y) * (vy - info->y) + (vz - info->z) * (vz - info->z));
   };
-
 
   double d = distance(x[0], x[1]);
   double ddr = distance(x[0] + 1e-10 * AU, x[1]);
   double ddp = distance(x[0], x[1] + 1e-10);
-
-  // std::cout << "Test:  " << x[0] << "  " << x[1] << "  " << x[2] << endl;
 
   grad = { (ddr - d) / (1e-10 * AU), (ddp - d) / (1e-10) };
 
@@ -181,8 +223,7 @@ double distance_to_point(const std::vector<double> &x, std::vector<double> &grad
 }
 
 double particle::get_HCS_distance() const {
-  nlopt_info info = { r * sin(theta) * cos(phi), r * sin(theta) * sin(phi), r * cos(theta), this };
-  // std::cout << "befor:  " << r/AU << "  " << theta << "  " << phi << "  " << r * sin(theta) * cos(phi) << "  " << r * sin(theta) * sin(phi) << "  " << r * cos(theta) << std::endl;
+  nlopt_info info = { r * sin(theta) * cos(phi), r * sin(theta) * sin(phi), r * cos(theta), r, phi, theta, this };
   nlopt::opt opt(nlopt::LD_MMA, 2);
   opt.set_min_objective(distance_to_point, &info);
   opt.set_xtol_rel(1e-8);
@@ -198,7 +239,6 @@ double particle::get_HCS_distance() const {
   };
 
   double dlow, dmid, dup;
-  double theta_hcs = Theta_S(r, phi);
   assign_region(-dr);
   opt.optimize(position_hcs, dlow);
 
@@ -215,8 +255,357 @@ double particle::get_HCS_distance() const {
   return sign * fmin(fmin(dlow, dup), dmid);
 }
 
-double particle::get_HCS_distance_new() const {
-  return 0;
+static int iter_d_fix = 0;
+double distance_to_point_fix_phi(const std::vector<double> &x, std::vector<double> &grad, void *voidp) {
+  nlopt_info *info = reinterpret_cast<nlopt_info*>(voidp);
+
+  auto distance = [&](double r) {
+    double vx, vy, vz;
+    info->p->HCS_rphi(r, info->phi, vx, vy, vz);
+    return sqrt((vx - info->x) * (vx - info->x) + (vy - info->y) * (vy - info->y) + (vz - info->z) * (vz - info->z));
+  };
+
+
+  double d = distance(x[0]);
+  double ddr = distance(x[0] + 1e-10 * AU);
+
+  grad = { (ddr - d) / (1e-10 * AU) };
+  iter_d_fix++;
+  return d;
+}
+double dtheta_to_point(const std::vector<double> &x, std::vector<double> &grad, void *voidp) {
+  nlopt_info *info = reinterpret_cast<nlopt_info*>(voidp);
+
+  double d = fabs(info->p->Theta_S(x[0], info->phi) - info->theta);
+  double ddr = fabs(info->p->Theta_S(x[0] + 1e-13 * AU, info->phi) - info->theta);
+
+  grad = { (ddr - d) / (1e-13 * AU) };
+  iter_d_fix++;
+  return d;
+}
+
+class SpiralVdot {
+  public:
+  const Vec p_cs0, target_point;
+  const double r_cs0, phi_cs0;
+  double ov, theta_cs, phi0, ctheta, stheta;
+  SpiralVdot(double ov_, const Vec& p_cs, const Vec& target_point_) :
+    p_cs0(p_cs), target_point(target_point_),
+    r_cs0(p_cs.len()), phi_cs0(p_cs.phi()),
+    ov(ov_), theta_cs(p_cs.theta()), phi0(phi_cs0 + r_cs0 * ov), ctheta(p_cs.z / r_cs0), stheta(sqrt(1 - ctheta * ctheta)) {}
+
+  Vec tangent_vec(double r, const Vec& point) const {
+    double rphi = r * stheta;
+    double sphi = point.y / rphi, cphi = point.x / rphi;
+
+    Vec dr(stheta * cphi, stheta * sphi, ctheta);
+    Vec dphi(-rphi * sphi, rphi * cphi, 0);
+
+    /************************************************************
+     * Delta_phi + Omega / V * Delta_r = 0
+     * Delta_phi = - Omega / V * Delta_r
+     * dr_phi = Delta_phi * dphi + Delta_r * dr
+     *        ~ - Omega / V * dphi + dr
+     ************************************************************/
+    Vec dv = - ov * dphi + dr;
+    dv.normalize();
+    return dv;
+  }
+
+  double operator()(double r) const {
+    Vec p_cs;
+    if (r == r_cs0) p_cs = p_cs0;
+    else {
+      double phi = phi0 - r * ov;
+      p_cs.set_spherical(r, theta_cs, phi);
+    }
+
+    return (target_point - p_cs).dot(tangent_vec(r, p_cs));
+  }
+};
+
+double particle::spiral_iterate(const Vec& target_point, Vec& p_cs) const {
+  double ov = Omega / Vs_eq;
+
+  SpiralVdot vdot(ov, p_cs, target_point);
+
+  double vdot0 = vdot(vdot.r_cs0);
+  if (vdot0 == 0) return 0;
+
+  double r1;
+  double dangle = - asin(vdot0 / (target_point - p_cs).len());
+
+  do {
+    dangle *= 2;
+    r1 = (vdot.phi0 - vdot.phi_cs0 - dangle * 2) / ov;
+  } while (vdot(r1) * vdot0 > 0);
+
+  double rh = ridders_method(vdot, vdot.r_cs0, r1, 1e-7 * AU);
+
+  p_cs.set_spherical(rh, vdot.theta_cs, vdot.phi0 -  rh * ov);
+  return (target_point - p_cs).len();
+}
+
+class WaveVdot {
+  public:
+  const Vec p_cs0, target_point;
+  const double r_cs0, theta_cs0;
+  double ov, phi_cs, cphi, sphi;
+  const particle* p;
+
+  WaveVdot(double ov_, const Vec& p_cs, const Vec& target_point_, const particle* p_) :
+    ov(ov_), p_cs0(p_cs), target_point(target_point_), r_cs0(p_cs.len()), theta_cs0(p_cs.theta()), phi_cs(p_cs.phi()), p(p_)
+  {
+    double rphi = sqrt(p_cs.x * p_cs.x + p_cs.y * p_cs.y);
+    cphi = p_cs.x / rphi;
+    sphi = p_cs.y / rphi;
+  }
+
+  Vec tangent_vec(double r, const Vec& point) const {
+    double ctheta = point.z / r, stheta = sqrt(1 - ctheta * ctheta);
+    double rphi = stheta * r;
+
+    Vec dr(stheta * cphi, stheta * sphi, ctheta);
+    Vec dtheta(r * ctheta * cphi, r * ctheta * sphi, - r * stheta);
+
+    /************************************************************
+     * Jokipii_Thomas:  sin(pi / 2 - theta) = sin(angle) * sin(phi + ov * r)
+     * Jokipii_Thomas:  - cos(pi / 2 - theta) * Delta_theta = sin(angle) * cos(phi + ov * r) * Delta_r * ov
+     * Jokipii_Thomas:  Delta_theta = - sin(angle) * cos(phi + ov * r) / cos(pi / 2 - theta) * Delta_r * ov
+     * 
+     * Kota_Jokipii:    tan(pi / 2 - theta) =  tan(angle) * sin(phi + ov * r)
+     * Kota_Jokipii:    - cos(pi / 2 - theta)^-2 * Delta_theta = tan(angle) * cos(phi + ov * r) * Delta_r * ov
+     * Kota_Jokipii:    Delta_theta = - tan(angle) * cos(phi + ov * r) * cos(pi / 2 - theta)^2 * Delta_r * ov
+     * 
+     *       dtheta_phi = Delta_theta * dtheta + Delta_r * dr
+     * Jokipii_Thomas:  ~ - sin(angle) * cos(phi + ov * r) / cos(pi / 2 - theta) * ov * dtheta + dphi
+     * Kota_Jokipii:    ~ - tan(angle) * cos(phi + ov * r) * cos(pi / 2 - theta)^2 * ov * dtheta + dphi
+     ************************************************************/
+
+    double phi0 = phi_cs + r * ov;
+
+    Vec dv;
+    if (p->hcsform == particle::Jokipii_Thomas) dv = - sin(p->angle) * cos(phi0) / stheta * ov * dtheta + dr;
+    else if (p->hcsform == particle::Kota_Jokipii) dv = - tan(p->angle) * cos(phi0) * stheta * stheta * ov * dtheta + dr;
+    else assert(false && "Unsuported hcsform");
+
+    dv.normalize();
+    return dv;
+  }
+
+  double operator()(double r) const {
+    Vec p_cs;
+    if (r == r_cs0) p_cs = p_cs0;
+    else
+      p_cs.set_spherical(r, p->Theta_S(r, phi_cs), phi_cs);
+
+    return (target_point - p_cs).dot(tangent_vec(r, p_cs));
+  }
+};
+
+double particle::wave_iterate(const Vec& target_point, Vec& p_cs) const {
+  double ov = Omega / Vs_eq;
+
+  WaveVdot vdot(ov, p_cs, target_point, this);
+
+//  Vec p_cs0 = p_cs;
+//  double r0 = p_cs.len();
+//  double phi_cs = p_cs.phi();
+//
+//  bool update_p_cs = false;
+//
+//  double rphi0 = sqrt(p_cs.x * p_cs.x + p_cs.y * p_cs.y);
+//  double sphi = p_cs.y / rphi0, cphi = p_cs.x / rphi0;
+//
+//  int iter = 0;
+//  auto tangent_vec = [&](const Vec& point) -> Vec {
+//    double r = point.len();
+//    double phi0_prime = phi_cs + r * ov;
+//    double rphi = sqrt(point.x * point.x + point.y * point.y);
+//    double stheta = rphi / r, ctheta = point.z / r;
+//
+//    Vec dr(stheta * cphi, stheta * sphi, ctheta);
+//    Vec dtheta(r * ctheta * cphi, r * ctheta * sphi, - r * stheta);
+//
+//    /************************************************************
+//     * Jokipii_Thomas:  sin(pi / 2 - theta) = sin(angle) * sin(phi + ov * r)
+//     * Jokipii_Thomas:  - cos(pi / 2 - theta) * Delta_theta = sin(angle) * cos(phi + ov * r) * Delta_r * ov
+//     * Jokipii_Thomas:  Delta_theta = - sin(angle) * cos(phi + ov * r) / cos(pi / 2 - theta) * Delta_r * ov
+//     * 
+//     * Kota_Jokipii:    tan(pi / 2 - theta) =  tan(angle) * sin(phi + ov * r)
+//     * Kota_Jokipii:    - cos(pi / 2 - theta)^-2 * Delta_theta = tan(angle) * cos(phi + ov * r) * Delta_r * ov
+//     * Kota_Jokipii:    Delta_theta = - tan(angle) * cos(phi + ov * r) * cos(pi / 2 - theta)^2 * Delta_r * ov
+//     * 
+//     *       dtheta_phi = Delta_theta * dtheta + Delta_r * dr
+//     * Jokipii_Thomas:  ~ - sin(angle) * cos(phi + ov * r) / cos(pi / 2 - theta) * ov * dtheta + dphi
+//     * Kota_Jokipii:    ~ - tan(angle) * cos(phi + ov * r) * cos(pi / 2 - theta)^2 * ov * dtheta + dphi
+//     ************************************************************/
+//
+//    Vec dv;
+//    if (hcsform == Jokipii_Thomas) dv = - sin(angle) * cos(phi0_prime) / stheta * ov * dtheta + dr;
+//    else if (hcsform == Kota_Jokipii) dv = - tan(angle) * cos(phi0_prime) * stheta * stheta * ov * dtheta + dr;
+//    else assert(false && "Unsuported hcsform");
+//
+//    dv.normalize();
+//    iter++;
+//    return dv;
+//  };
+//
+//  map<double, double> vdot_values;
+//  auto vdot = [&](double rprime) -> double {
+//    if (vdot_values.find(rprime) != vdot_values.end())
+//      return vdot_values.at(rprime);
+//
+//    if (update_p_cs)
+//      p_cs.set_spherical(rprime, Theta_S(rprime, phi_cs), phi_cs);
+//
+//    Vec dv = tangent_vec(p_cs);
+//    double res = (target_point - p_cs).dot(dv);
+//
+//    vdot_values[rprime] = res;   
+//    return res;
+//  };
+
+  double vdot0 = vdot(vdot.r_cs0);
+  if (vdot0 == 0) return 0;
+
+  double vdr = vdot0;
+  if (fabs(vdr) > pi / 2 / ov) vdr = pi / 2 / ov * (vdr > 0 ? 1 : -1);
+
+  int ir = 0;
+  double r1;
+  do {
+    ir++;
+    r1 = vdot.r_cs0 + ir * vdr;
+  } while (vdot(r1) * vdot0 > 0);
+
+  double rh = ridders_method(vdot, vdot.r_cs0, r1, 1e-7 * AU);
+  p_cs.set_spherical(rh, Theta_S(rh, vdot.phi_cs), vdot.phi_cs);
+  //cout << "==== " << (target_point - p_cs).dot(tangent_vec(p_cs)) / (target_point - p_cs).len() << endl;
+  return (target_point - p_cs).len();
+}
+
+Vec particle::norm_vec(const Vec& p_cs) const {
+  double r_cs = p_cs.len();
+  double phi_cs = p_cs.phi();
+
+  double rphi = sqrt(p_cs.x * p_cs.x + p_cs.y * p_cs.y);
+  double ctheta = p_cs.z / r_cs, stheta = sqrt(1 - ctheta * ctheta);
+  double sphi = p_cs.y / rphi, cphi = p_cs.x / rphi;
+  Vec dr(stheta * cphi, stheta * sphi, ctheta);
+  Vec dtheta(r_cs * ctheta * cphi, r_cs * ctheta * sphi, - r_cs * stheta);
+  Vec dphi(-r_cs * stheta * sphi, r_cs * stheta * cphi, 0);
+
+  double ov = Omega / Vs_eq;
+  /************************************************************
+   * Delta_phi + Omega / V * Delta_r = 0
+   * Delta_phi = - Omega / V * Delta_r
+   * dr_phi = Delta_phi * dphi + Delta_r * dr
+   *        ~ - Omega / V * dphi + dr
+   ************************************************************/
+  Vec dr_phi = - ov * dphi + dr;
+  //cout << "phi = (" << dphi << ")" << endl;
+  //cout << "r = (" << dr << ")" << endl;
+  //cout << "theta = (" << dtheta << ")" << endl;
+
+  /************************************************************
+   * Jokipii_Thomas:  sin(pi / 2 - theta) = sin(angle) * sin(phi + ov * r)
+   * Jokipii_Thomas:  - cos(pi / 2 - theta) * Delta_theta = sin(angle) * cos(phi + ov * r) * Delta_phi
+   * Jokipii_Thomas:  Delta_theta = - sin(angle) * cos(phi + ov * r) / cos(pi / 2 - theta) * Delta_phi
+   * 
+   * Kota_Jokipii:    tan(pi / 2 - theta) =  tan(angle) * sin(phi + ov * r)
+   * Kota_Jokipii:    - cos(pi / 2 - theta)^-2 * Delta_theta = tan(angle) * cos(phi + ov * r) * Delta_phi
+   * Kota_Jokipii:    Delta_theta = - tan(angle) * cos(phi + ov * r) * cos(pi / 2 - theta)^2 * Delta_phi
+   * 
+   *       dtheta_phi = Delta_theta * dtheta + Delta_phi * dphi
+   * Jokipii_Thomas:  ~ - sin(angle) * cos(phi + ov * r) / cos(pi / 2 - theta) * dtheta + dphi
+   * Kota_Jokipii:    ~ - tan(angle) * cos(phi + ov * r) * cos(pi / 2 - theta)^2 * dtheta + dphi
+   ************************************************************/
+  Vec dtheta_phi;
+  if (hcsform == Jokipii_Thomas) dtheta_phi = - sin(angle) * cos(phi0(r_cs, phi_cs)) / stheta * dtheta + dphi;
+  else if (hcsform == Kota_Jokipii) dtheta_phi = - tan(angle) * cos(phi0(r_cs, phi_cs)) * stheta * stheta * dtheta + dphi;
+  else assert(false && "Unsuported hcsform");
+
+  Vec dh = dr_phi.cross(dtheta_phi);
+  dh.normalize();
+  return dh;
+}
+
+double particle::point_iterate(const Vec& target_point, Vec& p_cs, Vec& dh) const {
+  Vec dl = p_cs - target_point;
+
+  Vec pnext = target_point + dh * dh.dot(dl);
+  Vec dv = pnext - p_cs;
+
+  if (dv.len() > 1 * AU) {
+    dv *= 1 * AU / dv.len();
+    pnext = p_cs + dv;
+  }
+
+  Vec dh_next;
+
+  //cout << ">>> " << p_cs.len() / AU << " -> " << pnext.len() / AU << endl;
+  do {
+    double r_cs = pnext.len();
+    double phi_cs = pnext.phi();
+    double theta_cs = Theta_S(r_cs, phi_cs);
+    pnext.set_spherical(r_cs, theta_cs, phi_cs);
+
+    //cout << "--- " << r_cs / AU << " " << theta_cs / deg << " " << phi_cs / deg << " | " << p_cs.len() / AU << " " << p_cs.theta() / deg << " " << p_cs.phi() / deg << endl;
+    //cout << "dv len: " << dv.len() / AU << endl;
+    //if (dv.len() == 0) break;
+    dh_next = norm_vec(pnext);
+    if (dl.cross(dh).dot(dl.cross(dh_next)) > 0) break;
+
+    dv *= 0.5;
+    pnext = p_cs + dv;
+  } while (true);
+
+  double d = (pnext - p_cs).len();
+
+  p_cs = pnext;
+  dh = dh_next;
+  return d;
+}
+
+double particle::get_HCS_distance_old() const {
+  Vec target, p_cs;
+  target.set_spherical(r, theta, phi);
+
+  double rlow, rup;
+  double phi0 = Phi0_S(theta);
+  r_bound(r, phi, phi0, rlow, rup);
+
+  double phi_cs = phi, theta_cs = theta;
+  if (theta_cs < pi / 2 - angle) theta_cs = pi / 2 - angle;
+  else if (theta_cs > pi / 2 + angle) theta_cs = pi / 2 + angle;
+
+  auto distance_iter = [&](Vec& point, int& iter) -> double {
+    double diter_w = 0,
+           diter_s = 0,
+           diter = 1e5 * AU;
+    while (diter - diter_s > 1e-7 * AU) {
+      diter = diter_s;
+      diter_w = wave_iterate(target, point);
+      diter_s = spiral_iterate(target, point);
+   }   
+    return (target - point).len();
+  };
+
+  int ilow = 0, imid = 0, iup = 0;
+  p_cs.set_spherical(rlow, theta_cs, phi_cs);
+  double dlow = distance_iter(p_cs, ilow);
+
+  p_cs.set_spherical(r, Theta_S(r, phi), phi);
+  double dmid = distance_iter(p_cs, imid);
+
+  p_cs.set_spherical(rup, theta_cs, phi_cs);
+  double dup = distance_iter(p_cs, iup);
+
+  //cout << phi / deg << " " << theta / deg << "--- " << ilow << " " << imid << " " << iup << endl;
+
+  double sign = Theta_S(r, phi) < theta ? -1 : 1;
+  return sign * fmin(fmin(dlow, dup), dmid);
 }
 
 void particle::step() {

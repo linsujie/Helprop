@@ -49,8 +49,6 @@ namespace Unit {
 class particle {
     public:
 
-    double light = 2.9979e8 * Unit::m / Unit::sec;                    //the speed of light in AU/s
-    //double k_n = 1.*pow(10,12.)/(AU*AU);                        //normalization diffusion coefficient in AU^2/s corresponging to 10^22 cm^2/s
     double boundary = 110 * Unit::AU;                                     //boundary condition in AU
     double dt = 1000 * Unit::sec;                                             //time interval per step
     double Vs;                                                  //solar wind velocity
@@ -106,7 +104,6 @@ class particle {
     double Phi0_S_Jokipii_Thomas(double) const;
     double Phi0_S_Kota_Jokipii(double) const;
 
-    static fcache theta_jokipii_thomas, theta_kota_jokipii;
     double Theta_S_Jokipii_Thomas(double) const;
     double Theta_S_Kota_Jokipii(double) const;
 
@@ -119,7 +116,7 @@ class particle {
 
     public:
     enum HCSFORM { Jokipii_Thomas, Kota_Jokipii };
-    HCSFORM hcsform;
+    static HCSFORM hcsform;
 
     particle(const std::map<std::string, docopt::value>& args);
     particle();

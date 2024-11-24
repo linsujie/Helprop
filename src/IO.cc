@@ -57,3 +57,26 @@ bool IO_TXT::writespec(const std::string& filename, const std::vector<double>& E
 
   return true;
 }
+
+bool IO_TXT::writematrix(const std::string& filename, const std::vector<double>& E, const std::vector< std::vector<double> >& M) const {
+  ofstream of(filename);
+
+  if (E.size() != M.size()) {
+    cerr << "IO::writematrix: E and M have different sizes" << endl;
+    return false;
+  }
+
+  of << setprecision(8) << setiosflags(ios::scientific);
+  of << "# ";
+  for (int i = 0; i < E.size(); i++)
+    of << E[i] << " ";
+  of << endl;
+
+  for (int irow = 0; irow < M.size(); irow++) {
+    for (int icol = 0; icol < M[irow].size(); icol++)
+      of << M[irow][icol] << " ";
+    of << endl;
+  }
+
+  return true;
+}

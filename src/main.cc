@@ -8,6 +8,7 @@
 #include <vector>
 #include "docopt.h"
 #include "particle.h"
+#include "IO.h"
 
 using namespace std;
 mutex mtx;
@@ -25,19 +26,6 @@ vector<string> split(const string& str, const string& splitor)
   }
 
   return result;
-}
-
-void read_spec(vector<double>& ekin, vector<double>& flux, const string& spectrumFileName) {
-  ifstream spectrumFile(spectrumFileName);
-  string line;
-  while (getline(spectrumFile, line)) {
-    double x, y;
-    istringstream iss(line);
-    iss >> x >> y;
-    ekin.push_back(x);
-    flux.push_back(y);
-  }
-  // cout << "ekin:   " << ekin.size() << endl;
 }
 
 vector<double> get_ekin(const string& ekin_opt) {
@@ -63,6 +51,9 @@ vector<particle> simulating(const particle& template_particle, int number, int t
     for (int i = iplow; i < ipup; i++) {
       Particle[i] = template_particle;
       Particle[i].step();
+      cerr << ">>particle " << i << ": "
+        << " Ek " << template_particle.Ek / Unit::GeV
+        << "GeV -> " << Particle[i].Ek / Unit::GeV << "GeV" << endl;
     }
   };
 
@@ -124,18 +115,29 @@ This Routine is used to simulate the modulation of particle within heliosphere.
       -D D, --D D                       Diffusion factor in unit 1e22 cm^2/s [default: 5].
       --indexA INDEXA                   Diffusion index a [default: 2].
       --ekins EKINS                     The ekin assigned in format min,max,nbin in GeV, this option would only act when no inspec is assigned [default: 0.1,10,40].
+      --iotype IOTYPE                   The input/output type (TXT, CSV, or BSON) [default: TXT].
 )";
 int main(int argc, char* argv[]) {
   std::map<std::string, docopt::value> args = docopt::docopt(USAGE, {argv + 1, argv + argc}, true);
 
+  IO *io = NULL;
+  if (args.at("--iotype").asString() == "TXT")
+    io = new IO_TXT();
+  //else if (args.at("--iotype").asString() == "CSV")
+  //  io = new CSVIO();
+  //else if (args.at("--iotype").asString() == "BSON")
+  //  io = new BSONIO();
+
   vector<double> ekin;   // set spectrum energy bin
   vector<double> flux;   // boundary differential flux
+
   if (bool(args.at("<inspec>")))
-    read_spec(ekin, flux, args.at("<inspec>").asString());
+    io->readspec(args.at("<inspec>").asString(), ekin, flux);
 
   if (ekin.empty())
     ekin = get_ekin(args.at("--ekins").asString());
 
+  cout << "ekin.size() = " << ekin.size() << endl;
   vector<vector<double>> weight;  // possibility matrix
 
   int number = args.at("--number").asLong();
@@ -144,6 +146,7 @@ int main(int argc, char* argv[]) {
 
   for (int i = 0; i < ekin.size(); i++) {
     one.Ek = ekin[i] * Unit::GeV;
+    cout << "simulating Ek = " << one.Ek / Unit::GeV << endl;
     auto Particle = simulating(one, number, th_num);
 
     auto bin = count_distribution(Particle, ekin);
@@ -159,7 +162,7 @@ int main(int argc, char* argv[]) {
     Ospec.push_back(value);
   }
 
-  cout << "done" << endl;
+  io->writespec(args.at("<outspec>").asString(), ekin, Ospec);
 
   return 0;
 }

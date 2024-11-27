@@ -5,6 +5,8 @@
 #include <cmath>
 #include <random>
 #include <fstream>
+#include "Vec.hh"
+#include "fcache.h"
 #include "docopt.h"
 
 namespace Unit {
@@ -45,10 +47,8 @@ namespace Unit {
   const double epsilon_0 = 8.854e-12 * C / (V * m); //permittivity of free space in F/m
 };
 class particle {
-    private:
+    public:
 
-    double light = 2.9979e8 * Unit::m / Unit::sec;                    //the speed of light in AU/s
-    //double k_n = 1.*pow(10,12.)/(AU*AU);                        //normalization diffusion coefficient in AU^2/s corresponging to 10^22 cm^2/s
     double boundary = 110 * Unit::AU;                                     //boundary condition in AU
     double dt = 1500 * Unit::sec;                                             //time interval per step
     double Vs;                                                  //solar wind velocity
@@ -58,7 +58,7 @@ class particle {
     double t = 0.0;
 
     double polarity;                                            //field direction
-    double angle;                                               //tilt angle of HCS
+    static double angle;                                               //tilt angle of HCS
     double B0;                                                  //magnetic strength in the Earth in T
 
     double k_xx;                                                //field along diffusion coefficient in local fram
@@ -90,12 +90,33 @@ class particle {
     double Vdp_HCS = 0;
     double Vdt_HCS = 0;
 
-    double Theta_S_Jokipii_Thomas(double, double) const;
-    double Theta_S_Kota_Jokipii(double, double) const;
+    inline double phi0(double r, double phi) const {
+      return phi + r * Omega / Vs_eq - Omega * (t - t0);
+    }
+    void r_bound(double r, double phi, double phi0, double& rlow, double& rup) const;
+
+    double spiral_iterate(const Vec& target_point, Vec& p_cs) const;
+    double wave_iterate(const Vec& target_point, Vec& p_cs) const;
+    double point_iterate(const Vec& target_point, Vec& p_cs, Vec& dh) const;
+
+    Vec norm_vec(const Vec& p_cs) const;
+
+    double Phi0_S_Jokipii_Thomas(double) const;
+    double Phi0_S_Kota_Jokipii(double) const;
+
+    double Theta_S_Jokipii_Thomas(double) const;
+    double Theta_S_Kota_Jokipii(double) const;
+
+    inline double Theta_S_Jokipii_Thomas(double r, double phi) const {
+      return Theta_S_Jokipii_Thomas(phi0(r, phi));
+    }
+    inline double Theta_S_Kota_Jokipii(double r, double phi) const {
+      return Theta_S_Kota_Jokipii(phi0(r, phi));
+    }
 
     public:
     enum HCSFORM { Jokipii_Thomas, Kota_Jokipii };
-    HCSFORM hcsform;
+    static HCSFORM hcsform;
 
     particle(const std::map<std::string, docopt::value>& args);
     particle();
@@ -105,9 +126,11 @@ class particle {
 
     const double Wind();                                        //solar wind velocity function
     double Theta_S(double, double) const;                                     //theat_s function
+    double Phi0_S(double) const;
     const double Heav();                                        //get heaviside function
     const double B_r(const double &heaviside);                  //radial magnetic field function
     const double B_p(const double &heaviside);                  //azimuthal magnetic field function
+    double get_HCS_distance_old() const;
     double get_HCS_distance() const;
 
     const double K_rr();

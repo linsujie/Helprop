@@ -23,6 +23,7 @@ public:
   ~IO_TXT() {}
 
   bool readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F) const;
+  bool writematrix(const std::string& filename, const std::vector<double>& E, const std::vector< std::vector<double> >& M) const;
   bool writespec(const std::string& filename, const std::vector<double>& E, const std::vector<double>& F) const;
 };
 

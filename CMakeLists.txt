@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.13)
-set(CMAKE_CXX_FLAGS "-std=c++11")
+set(CMAKE_CXX_FLAGS "-std=c++11 -O2")
 project(HelProp)
 
+SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMakeModules)
 FIND_PACKAGE(NLOPT)
 
@@ -10,13 +11,16 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/docopt)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src)
 INCLUDE_DIRECTORIES(${NLOPT_INCLUDE_DIR})
 
-set(SRC
-    ${PROJECT_SOURCE_DIR}/src/particle.cc
-    ${PROJECT_SOURCE_DIR}/src/IO.cc
-    ${PROJECT_SOURCE_DIR}/src/main.cc
-)
+IF (PROFILE_DEBUG)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pg")
+ENDIF()
+
+ADD_LIBRARY(helprop SHARED src/particle.cc src/IO.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
 
-ADD_EXECUTABLE(HelProp ${SRC})
-TARGET_LINK_LIBRARIES(HelProp docopt ${NLOPT_LIBRARIES})
+ADD_EXECUTABLE(HelProp src/main.cc)
+TARGET_LINK_LIBRARIES(HelProp docopt helprop ${NLOPT_LIBRARIES})
+
+ADD_EXECUTABLE(get_HCS_distance_test src/get_HCS_distance_test.cc src/particle.cc src/IO.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc)
+TARGET_LINK_LIBRARIES(get_HCS_distance_test docopt ${NLOPT_LIBRARIES})

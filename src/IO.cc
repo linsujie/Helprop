@@ -1,5 +1,7 @@
 #include "IO.h"
 #include "rfl.hpp"
+#include "rfl/json.hpp"
+#include "rfl/bson.hpp"
 
 #include <bson.h>
 
@@ -11,20 +13,29 @@
 
 using namespace std;
 
-bool IO::readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry) const {
+void IO::set_params(const std::map<std::string, docopt::value>& args) {
+  auto fargs = [&](const std::string& key) -> double {
+    return atof(args.at(key).asString().c_str());
+  };
+
+  for (auto& k : { "number", "mass", "B0", "polarity", "angle", "D", "indexA" })
+    params[k] = fargs(string("--") + k);
+}
+
+bool IO::readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry) {
   assert(false && "IO::readspec not implemented for selected type");
 }
 bool IO::writespec(const std::string& filename, const std::vector<double>& E, const std::vector<double>& F, WRITEMODE mode) const {
   assert(false && "IO::writespec not implemented for selected type");
 }
-bool IO::readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry) const {
+bool IO::readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry) {
   assert(false && "IO::readmatrix not implemented for selected type");
 }
 bool IO::writematrix(const std::string& filename, const std::vector<double>& E, const std::vector< std::vector<double> >& M, WRITEMODE mode) const {
   assert(false && "IO::writematrix not implemented for selected type");
 }
 
-bool IO_TXT::readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry) const {
+bool IO_TXT::readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry) {
   assert(ientry > 0 && "IO_TXT::readspec: ientry must be greater than 0");
   E.clear();
   F.clear();
@@ -73,7 +84,7 @@ bool IO_TXT::writespec(const std::string& filename, const std::vector<double>& E
   return true;
 }
 
-bool IO_TXT::readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry) const {
+bool IO_TXT::readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry) {
   assert(ientry > 0 && "IO_TXT::readmatrix: ientry must be greater than 0");
   E.clear();
   M.clear();
@@ -181,7 +192,7 @@ std::string join(const std::vector<T>& vecs, const std::string& splitor = " ", i
   return os.str();
 }
 
-bool IO_CSV::readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry) const {
+bool IO_CSV::readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry) {
   assert(ientry > 0 && "IO_CSV::readspec: ientry must be positive");
   E.clear();
   F.clear();
@@ -225,7 +236,7 @@ bool IO_CSV::writespec(const std::string& filename, const std::vector<double>& E
   return true;
 }
 
-bool IO_CSV::readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry) const {
+bool IO_CSV::readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry) {
   assert(ientry > 0 && "IO_CSV::readmatrix: ientry must be positive");
   E.clear();
   M.clear();
@@ -284,37 +295,47 @@ bool IO_CSV::writematrix(const std::string& filename, const std::vector<double>&
   return true;
 }
 
-bool IO_BSON::readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry) const {
-  bson_reader_t *reader;
-  const bson_t *data = NULL;
-  bson_error_t error;
+vector<char> readbson(const string& filename, int ientry) {
+  vector<char> buf;
 
-  if (!(reader = bson_reader_new_from_file(filename.c_str(), &error))) {
-    fprintf(stderr, "Failed to open \"%s\": %s\n", filename.c_str(), error.message);
-    return false;
+  FILE* datafile = fopen(filename.c_str(), "rb");
+  if (!datafile) {
+    cerr << "IO_BSON::readspec/readmatrix: cannot open file " << filename << endl;
+    return buf;
   }
 
-  size_t offset;
-  int docnum = 0;
-
-  for (int i = 0; i < ientry; i++)
-    data = bson_reader_read(reader, NULL);
-
-  if (!bson_validate(data,
-                     bson_validate_flags_t(BSON_VALIDATE_UTF8 |
-                                           BSON_VALIDATE_UTF8_ALLOW_NULL),
-                     &offset)) {
-    fprintf(stderr, "Document %d in \"%s\" is invalid at offset %zu.\n", ientry, filename.c_str(), offset);
-    bson_reader_destroy(reader);
-    return false;
+  for (int i = 0; i < ientry; i++) {
+    buf.resize(4);
+    int slen = fread(&buf[0], 1, 4, datafile);
+    int entry_size = *((int*)(&buf[0]));
+    buf.resize(entry_size);
+    int sentry = fread(&buf[4], 1, entry_size - 4, datafile);
+    if (slen != 4 || sentry != entry_size - 4) {
+      cerr << "IO_BSON::readspec/readmatrix: no " << i << "th entry found in file " << filename << endl;
+      buf.clear();
+      break;
+    }
   }
-  char* str = bson_as_relaxed_extended_json(data, NULL);
-  cout << str << endl;
-  bson_free(str);
+  fclose(datafile);
 
+  return buf;
+}
+struct SpecBson {
+  std::map<std::string, double> params;
+  vector<double> E;
+  vector<double> F;
+};
+bool IO_BSON::readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry) {
+  vector<char> buf = readbson(filename, ientry);
 
-  bson_reader_destroy(reader);
-  return false;
+  if (buf.empty()) return false;
+
+  const auto res = rfl::bson::read<SpecBson>(buf).value();
+  E = res.E;
+  F = res.F;
+  params = res.params;
+
+  return true;
 }
 
 bool IO_BSON::writespec(const std::string& filename, const std::vector<double>& E, const std::vector<double>& F, WRITEMODE mode) const {
@@ -323,34 +344,44 @@ bool IO_BSON::writespec(const std::string& filename, const std::vector<double>& 
     return false;
   }
 
-  bson_t data, dataE, dataF;
-
-  bson_init(&data);
-  bson_append_array_begin(&data, "E", -1, &dataE);
-  for (int i = 0; i < E.size(); i++)
-    bson_append_double(&dataE, "", -1, E[i]);
-  bson_append_array_end(&data, &dataE);
-
-  bson_append_array_begin(&data, "F", -1, &dataF);
-  for (int i = 0; i < F.size(); i++)
-    bson_append_double(&dataF, "", -1, F[i]);
-  bson_append_array_end(&data, &dataF);
-
-  //char *str = bson_as_relaxed_extended_json(&data, NULL);
-  //cout << str << endl;
-  //bson_free(str);
+  const auto spec = SpecBson{.params= params, .E = E, .F = F};
+  vector<char> bspec = rfl::bson::write(spec);
 
   FILE *of = fopen(filename.c_str(), mode == APPEND ? "a" : "w");
-  fwrite(bson_get_data(&data), 1, data.len, of);
-  bson_destroy(&data);
+  fwrite(&bspec[0], 1, bspec.size(), of);
+  fclose(of);
 
   return true;
 }
 
-bool IO_BSON::readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry) const {
-  return false;
+struct MatrixBson {
+  map<string, double> params;
+  std::vector<double> E;
+  std::vector<std::vector<double> > M;
+};
+bool IO_BSON::readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry) {
+  vector<char> buf = readbson(filename, ientry);
+  if (buf.empty()) return false;
+
+  const auto res = rfl::bson::read<MatrixBson>(buf).value();
+  E = res.E;
+  M = res.M;
+  params = res.params;
+
+  return true;
 }
 
 bool IO_BSON::writematrix(const std::string& filename, const std::vector<double>& E, const std::vector< std::vector<double> >& M, WRITEMODE mode) const {
-  return false;
+  if (E.size() != M.size()) {
+    cerr << "IO_BSON::writematrix: E and M have different sizes" << endl;
+    return false;
+  }
+
+  const auto matrix = MatrixBson{.params=params, .E = E, .M = M};
+  vector<char> bmatrix = rfl::bson::write(matrix);
+
+  FILE *of = fopen(filename.c_str(), mode == APPEND ? "a" : "w");
+  fwrite(&bmatrix[0], 1, bmatrix.size(), of);
+  fclose(of);
+  return true;
 }

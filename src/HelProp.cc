@@ -116,6 +116,7 @@ This Routine is used to simulate the modulation of particle within heliosphere.
       --indexA INDEXA                   Diffusion index a [default: 2].
       --ekins EKINS                     The ekin assigned in format min,max,nbin in GeV, this option would only act when no inspec is assigned [default: 0.1,10,40].
       --iotype IOTYPE                   The input/output type (TXT, CSV, or BSON) [default: TXT].
+      --append                          Append the output to existing file [default: false].
 )";
 int main(int argc, char* argv[]) {
   std::map<std::string, docopt::value> args = docopt::docopt(USAGE, {argv + 1, argv + argc}, true);
@@ -123,10 +124,12 @@ int main(int argc, char* argv[]) {
   IO *io = NULL;
   if (args.at("--iotype").asString() == "TXT")
     io = new IO_TXT();
-  //else if (args.at("--iotype").asString() == "CSV")
-  //  io = new CSVIO();
-  //else if (args.at("--iotype").asString() == "BSON")
-  //  io = new BSONIO();
+  else if (args.at("--iotype").asString() == "CSV")
+    io = new IO_CSV();
+  else if (args.at("--iotype").asString() == "BSON")
+    io = new IO_BSON();
+
+  io->set_params(args);
 
   vector<double> ekin;   // set spectrum energy bin
   vector<double> flux;   // boundary differential flux

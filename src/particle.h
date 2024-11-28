@@ -50,7 +50,7 @@ class particle {
     public:
 
     double boundary = 110 * Unit::AU;                                     //boundary condition in AU
-    double dt = 1000 * Unit::sec;                                             //time interval per step
+    double dt = 1500 * Unit::sec;                                             //time interval per step
     double Vs;                                                  //solar wind velocity
     double Vs_eq;
     double Omega = 2*Unit::pi/27.5/Unit::day;                        //angular velocity corresponding to 27.5 day
@@ -134,7 +134,7 @@ class particle {
     double get_HCS_distance() const;
 
     const double K_rr();
-    const double K_tt();
+    const double K_tt(double);
     const double K_pp();
 
     void HCS_rphi(const double &r, const double &phi, double& x, double& y, double& z) const;

@@ -81,8 +81,6 @@ double particle::Theta_S_Jokipii_Thomas(double phi0) const {
 
   return theta_jokipii_thomas(phi0);
 }
-<<<<<<< HEAD
-=======
 double particle::Phi0_S_Jokipii_Thomas(double theta) const {
   double ratio = sin(pi / 2 - theta) / sin(angle);
   if (ratio >= 1) return pi / 2;
@@ -103,7 +101,6 @@ double particle::Phi0_S_Kota_Jokipii(double theta) const {
 
   return asin(ratio);
 }
->>>>>>> 9ad3a7a3c690290c860a1785f0040ec66ed379a6
 
 double particle::Theta_S(double r, double phi) const {
   if (hcsform == Jokipii_Thomas)
@@ -111,9 +108,6 @@ double particle::Theta_S(double r, double phi) const {
   else if (hcsform == Kota_Jokipii)
     return Theta_S_Kota_Jokipii(r, phi);
 
-<<<<<<< HEAD
-  return Theta_S_Jokipii_Thomas(r, phi);
-=======
   assert(false && "hcsform not supported");
   return 0;
 }
@@ -125,7 +119,6 @@ double particle::Phi0_S(double theta) const {
 
   assert(false && "hcsform not supported");
   return 0;
->>>>>>> 9ad3a7a3c690290c860a1785f0040ec66ed379a6
 }
 
 const double particle::Heav() {
@@ -755,13 +748,6 @@ void particle::step() {
     if (phi < 0.) phi = 2. * pi + phi;
     else if (2. * pi < phi) phi -= 2. * pi;
 
-<<<<<<< HEAD
-    // f2 << r/AU << "   " << theta << "   " << Vdr_HCS << "  " << Vdt_HCS << "  " << Vdp_HCS << "   " << heaviside << "  " << beta << "  " << delta << std::endl;
-    // f2 << r / AU << "  " << theta << "  " << Vs*dt << "  " << Vdr_gc*dt << "  " << Vdr_HCS*dt << "  " << sqrt(2. * fabs(k_rr) * dt) * dwr << std::endl;
-    // f2 << r / AU << "  " << theta << "  " << 1. * Vdt_gc / r*dt << "  " << Vdt_HCS / r*dt << "  " << 1. / (r * r * sin(theta)) * cos(theta) * k_tt * dt << "  " << 1. / r * sqrt(2. * fabs(k_tt) * dt) * dwt << std::endl;
-    f2 << r/AU << "  " << M_p / GeV << "  " << Ek/GeV << std::endl;
-=======
->>>>>>> 9ad3a7a3c690290c860a1785f0040ec66ed379a6
     // if(60*60*24*365*1.5<record_T) break;
     // std::cout << r/AU << "  " << theta << "  " << phi << std::endl;
   }

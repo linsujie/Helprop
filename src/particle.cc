@@ -109,7 +109,6 @@ double particle::Theta_S(double r, double phi) const {
   else if (hcsform == Kota_Jokipii)
     return Theta_S_Kota_Jokipii(r, phi);
 
-  return Theta_S_Jokipii_Thomas(r, phi);
   assert(false && "hcsform not supported");
   return 0;
 }
@@ -835,4 +834,5 @@ void particle::step() {
   std::cout << "get One particle." << std::endl;
   f2.close();
   getchar();
+}
 }

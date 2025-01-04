@@ -11,7 +11,6 @@
 using namespace std;
 using namespace Unit;
 
-
 double particle::angle = 45 * deg;
 particle::HCSFORM particle::hcsform = Jokipii_Thomas;
 
@@ -648,9 +647,12 @@ double wind1(double r, double theta, double phi, double angle){
     return  value * 400 * (km / sec);
 }
 
-void particle::step() {
-  random_device rd;
-  mt19937 gen(rd());
+void particle::step(const string& logname) {
+  if (!fix_seed) {
+    random_device rd;
+    seed = rd();
+  }
+  mt19937 gen(seed);
   double mean = 0.0;
   double dev = 1.0;
   std::normal_distribution<double> dist(mean, dev);
@@ -659,8 +661,10 @@ void particle::step() {
   double record_T = 0.;
   hcsform = Kota_Jokipii;
 
-  std::ofstream f2("file2");  //, std::ios::app
-  // f2.open("file2");
+  std::ofstream logfile(logname);
+  if (logfile.is_open())
+    logfile << "r[AU],theta[deg],phi[deg],Ek[GeV],drift,Vdr_gc[km/s]" << endl;
+
   // theta = 1e-3;
   double Dt = 0;
   double M_p0 = sqrt(Ek * (Ek + 2. * mass));
@@ -764,7 +768,7 @@ void particle::step() {
 
 // std::cout << "V:  " << Vs << "  " << V1 << std::endl;
 // getchar();
-    // f2 << Dt << "  " << r/AU << "  " << theta << "  " << Vs*dt << "  " << Vdr_gc*dt << "  " << 2. * k_rr / r *dt << "  " << sqrt(2. * fabs(k_rr) * dt) * dwr << "  " << k_rr << std::endl;
+    // logfile << Dt << "  " << r/AU << "  " << theta << "  " << Vs*dt << "  " << Vdr_gc*dt << "  " << 2. * k_rr / r *dt << "  " << sqrt(2. * fabs(k_rr) * dt) * dwr << "  " << k_rr << std::endl;
 // 
     r += (-1. * Vs + fabs(Vdr_gc) - Vdr_HCS + 2. * k_rr / r) * dt +
          sqrt(2. * fabs(k_rr) * dt) * dwr;
@@ -816,23 +820,22 @@ void particle::step() {
     //   continue;
     // }
 
-    // f2 << r/AU << "   " << theta << "   " << Vdr_HCS << "  " << Vdt_HCS << "  " << Vdp_HCS << "   " << heaviside << "  " << beta << "  " << delta << std::endl;
-    // f2 << r / AU << "  " << theta << "  " << Vs*dt << "  " << Vdr_gc*dt << "  " << Vdr_HCS*dt << "  " << sqrt(2. * fabs(k_rr) * dt) * dwr << std::endl;
-    // f2 << r / AU << "  " << theta << "  " << 1. * Vdt_gc / r*dt << "  " << Vdt_HCS / r*dt << "  " << 1. / (r * r * sin(theta)) * cos(theta) * k_tt * dt << "  " << 1. / r * sqrt(2. * fabs(k_tt) * dt) * dwt << std::endl;
-    // f2 << r/AU << "  " << M_p / GeV << "  " << Ek/GeV << std::endl;
+    // logfile << r/AU << "   " << theta << "   " << Vdr_HCS << "  " << Vdt_HCS << "  " << Vdp_HCS << "   " << heaviside << "  " << beta << "  " << delta << std::endl;
+    // logfile << r / AU << "  " << theta << "  " << Vs*dt << "  " << Vdr_gc*dt << "  " << Vdr_HCS*dt << "  " << sqrt(2. * fabs(k_rr) * dt) * dwr << std::endl;
+    // logfile << r / AU << "  " << theta << "  " << 1. * Vdt_gc / r*dt << "  " << Vdt_HCS / r*dt << "  " << 1. / (r * r * sin(theta)) * cos(theta) * k_tt * dt << "  " << 1. / r * sqrt(2. * fabs(k_tt) * dt) * dwt << std::endl;
+    // logfile << r/AU << "  " << M_p / GeV << "  " << Ek/GeV << std::endl;
     // if(60*60*24*365*1.5<record_T) break;
-    // f2 << r/AU << "  " << theta << "  " << Vdt_gc / r * dt << "  " << 1. / (r * r * sin(theta)) * cos(theta) * k_tt * dt << "  " << k_tt << "  " << 1. / r * sqrt(2. * fabs(k_tt) * dt) * dwt << std::endl;
-    // f2 << r/AU << "  " << theta << "  " << Vdr_HCS << "  " << Vdr_gc << "  " << Vdt_HCS << "  " << Vdt_gc << "  " << Vs << "  " << drift << std::endl;
-    // f2 << r/AU << "  " << theta << "  " << Vdr_gc*dt << "  " << Vdr_HCS*dt << "  " << 2. * k_rr / r*dt << "  " << sqrt(2. * fabs(k_rr) * dt) << std::endl;
-    // f2 << r/AU << "  " << k_rr << "  " << psi << std::endl;
-    f2 << r/AU << "  " << theta << "  " << Ek / GeV << "  " << drift << "  " << Vdr_gc << std::endl;
+    // logfile << r/AU << "  " << theta << "  " << Vdt_gc / r * dt << "  " << 1. / (r * r * sin(theta)) * cos(theta) * k_tt * dt << "  " << k_tt << "  " << 1. / r * sqrt(2. * fabs(k_tt) * dt) * dwt << std::endl;
+    // logfile << r/AU << "  " << theta << "  " << Vdr_HCS << "  " << Vdr_gc << "  " << Vdt_HCS << "  " << Vdt_gc << "  " << Vs << "  " << drift << std::endl;
+    // logfile << r/AU << "  " << theta << "  " << Vdr_gc*dt << "  " << Vdr_HCS*dt << "  " << 2. * k_rr / r*dt << "  " << sqrt(2. * fabs(k_rr) * dt) << std::endl;
+    // logfile << r/AU << "  " << k_rr << "  " << psi << std::endl;
+    if (logfile.is_open())
+      logfile << r/AU << "," << theta / Unit::deg << "," << phi / Unit::deg << "," << Ek / GeV << "," << drift << "," << Vdr_gc << endl;
     // getchar();
   }
   // if(50 < r/AU)  {
-  //   f2 << r/AU << "  " << theta << "  " << Ek / GeV << std::endl;
+  //   logfile << r/AU << "  " << theta << "  " << Ek / GeV << std::endl;
   // }
-  std::cout << "get One particle." << std::endl;
-  f2.close();
-  getchar();
-}
+  if (logfile.is_open()) logfile.close();
+  cout << "particle over" << endl;
 }

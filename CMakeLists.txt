@@ -29,10 +29,12 @@ TARGET_LINK_LIBRARIES(helprop ${NLOPT_LIBRARIES})
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
 
-FOREACH(var HelProp iotest)
+FOREACH(var HelProp IOTest ParticleTest)
   ADD_EXECUTABLE(${var} src/${var}.cc)
   TARGET_LINK_LIBRARIES(${var} docopt helprop ${reflectcpp} ${libbson})
 ENDFOREACH()
 
-ADD_EXECUTABLE(get_HCS_distance_test src/get_HCS_distance_test.cc src/particle.cc src/IO.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc)
-TARGET_LINK_LIBRARIES(get_HCS_distance_test docopt ${NLOPT_LIBRARIES} ${reflectcpp} ${libbson})
+IF (PROFILE_DEBUG)
+  ADD_EXECUTABLE(get_HCS_distance_test src/get_HCS_distance_test.cc src/particle.cc src/IO.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc)
+  TARGET_LINK_LIBRARIES(get_HCS_distance_test docopt ${NLOPT_LIBRARIES} ${reflectcpp} ${libbson})
+ENDIF()

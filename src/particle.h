@@ -49,6 +49,9 @@ namespace Unit {
 class particle {
     public:
 
+    long seed = 0;
+    long fix_seed = false;
+
     double boundary = 100 * Unit::AU;                                     //boundary condition in AU
     double dt = 100 * Unit::sec;                                             //time interval per step
     double Vs;                                                  //solar wind velocity
@@ -122,7 +125,7 @@ class particle {
     particle();
     ~particle();
 
-    void step();                                                //simulate trajectory of particle
+    void step(const std::string& logname = "");                                       //simulate trajectory of particle
 
     const double Wind();                                        //solar wind velocity function
     double Theta_S(double, double) const;                                     //theat_s function

@@ -50,8 +50,11 @@ vector<particle> simulating(const particle& template_particle, int number, int t
   auto thread_run = [template_particle, &Particle](int iplow, int ipup) mutable {
     for (int i = iplow; i < ipup; i++) {
       Particle[i] = template_particle;
+      if (!Particle[i].fix_seed)
+        Particle[i].seed += i;
+
       Particle[i].step();
-      cerr << ">>particle " << i << ": "
+      cerr << ">>particle " << i << " seed " << Particle[i].seed << ": "
         << " Ek " << template_particle.Ek / Unit::GeV
         << "GeV -> " << Particle[i].Ek / Unit::GeV << "GeV" << endl;
     }
@@ -146,9 +149,14 @@ int main(int argc, char* argv[]) {
   int number = args.at("--number").asLong();
   int th_num = 1;//args.at("--nthread").asLong();
   particle one(args);
+  bool fix_seed = bool(args.at("--seed"));
+  long seed = fix_seed ? args.at("--seed").asLong() : 0;
 
   for (int i = 0; i < ekin.size(); i++) {
     one.Ek = ekin[i] * Unit::GeV;
+    one.fix_seed = fix_seed;
+    one.seed = seed + i * number;
+
     cout << "simulating Ek = " << one.Ek / Unit::GeV << endl;
     auto Particle = simulating(one, number, th_num);
 

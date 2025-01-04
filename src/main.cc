@@ -111,7 +111,7 @@ This Routine is used to simulate the modulation of particle within heliosphere.
       -m MASS, --mass MASS              The particle mass in GeV [default: 0.93827].
       -B B0, --B0 B0                    The magnetic strength around the Earth in nT [default: 5].
       -p POLARITY, --polarity POLARITY  The direction polarity of the magnetic field [default: -1].
-      -a ANGLE, --angle ANGLE           Tilt angle of HCS in deg [default: 35].
+      -a ANGLE, --angle ANGLE           Tilt angle of HCS in deg [default: 15].
       -D D, --D D                       Diffusion factor in unit 1e22 cm^2/s [default: 5].
       --indexA INDEXA                   Diffusion index a [default: 2].
       --ekins EKINS                     The ekin assigned in format min,max,nbin in GeV, this option would only act when no inspec is assigned [default: 0.1,10,40].
@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
   vector<vector<double>> weight;  // possibility matrix
 
   int number = args.at("--number").asLong();
-  int th_num = args.at("--nthread").asLong();
+  int th_num = 1;//args.at("--nthread").asLong();
   particle one(args);
 
   for (int i = 0; i < ekin.size(); i++) {
@@ -151,6 +151,8 @@ int main(int argc, char* argv[]) {
 
     auto bin = count_distribution(Particle, ekin);
     weight.push_back(bin);
+    std::cout << "get Out" << std::endl;
+    getchar();
   }
 
   vector<double> Ospec;

@@ -49,8 +49,8 @@ namespace Unit {
 class particle {
     public:
 
-    double boundary = 110 * Unit::AU;                                     //boundary condition in AU
-    double dt = 1500 * Unit::sec;                                             //time interval per step
+    double boundary = 100 * Unit::AU;                                     //boundary condition in AU
+    double dt = 100 * Unit::sec;                                             //time interval per step
     double Vs;                                                  //solar wind velocity
     double Vs_eq;
     double Omega = 2*Unit::pi/27.5/Unit::day;                        //angular velocity corresponding to 27.5 day
@@ -128,8 +128,8 @@ class particle {
     double Theta_S(double, double) const;                                     //theat_s function
     double Phi0_S(double) const;
     const double Heav();                                        //get heaviside function
-    const double B_r(const double &heaviside);                  //radial magnetic field function
-    const double B_p(const double &heaviside);                  //azimuthal magnetic field function
+    const double B_r(const double& r, const double &heaviside);                  //radial magnetic field function
+    const double B_p(const double& r, const double& theta, const double &heaviside);                  //azimuthal magnetic field function
     double get_HCS_distance_old() const;
     double get_HCS_distance() const;
 

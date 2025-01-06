@@ -12,6 +12,6 @@ make install
 cd ${current_dir}
 mkdir -p build/reflect-cpp; cd build/reflect-cpp
 cmake ../../reflect-cpp
-cmake -DCMAKE_INSTALL_PREFIX=../../ -DREFLECTCPP_BSON=true .
+cmake -DCMAKE_INSTALL_PREFIX=../../ -DREFLECTCPP_BSON=true -DREFLECTCPP_USE_VCPKG=false .
 make
 make install

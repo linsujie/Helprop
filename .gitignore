@@ -4,11 +4,13 @@ extern/lib64
 extern/share
 extern/include
 extern/mongo-c-driver/.*
+lib/
 CMakeFiles/
 cmake_install.cmake
 HelProp
 IOTest
 ParticleTest
+libdocopt.a
 Makefile
 
 *.out

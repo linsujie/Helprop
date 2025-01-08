@@ -1,0 +1,1 @@
+/usr/bin/c++ -std=c++20 -O2 CMakeFiles/ParticleTest.dir/src/ParticleTest.cc.o -o ParticleTest  -Wl,-rpath,/home/jiang/helprop2/lib:/home/jiang/helprop2/extern/lib docopt/libdocopt.a lib/libhelprop.so extern/lib/libreflectcpp.a extern/lib/libbson-1.0.so /usr/lib/x86_64-linux-gnu/libnlopt.so

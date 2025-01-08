@@ -110,7 +110,7 @@ This Routine is used to simulate the modulation of particle within heliosphere.
       -h --help                         Show this help.
       -s SEED, --seed SEED              The global seed of this routine, it would be automatically given if not assigned.
       -n NTH, --nthread NTH             The number of threads used in this routine [default: 1].
-      --number NUMBER                   The simulation particle number in each bin[default: 3000].
+      --number NUMBER                   The simulation particle number in each bin[default: 1000].
       -m MASS, --mass MASS              The particle mass in GeV [default: 0.93827].
       -B B0, --B0 B0                    The magnetic strength around the Earth in nT [default: 5].
       -p POLARITY, --polarity POLARITY  The direction polarity of the magnetic field [default: -1].

@@ -51,10 +51,10 @@ class particle {
 
     long seed = 0;
     long fix_seed = false;
-    double A_drift = 0.5;
+    double A_drift = 1;
 
     double boundary = 100 * Unit::AU;                                     //boundary condition in AU
-    double dt = 100 * Unit::sec;                                             //time interval per step
+    double dt = 500. * Unit::sec;                                             //time interval per step
     double Vs;                                                  //solar wind velocity
     double Vs_eq;
     double Omega = 2*Unit::pi/27.5/Unit::day;                        //angular velocity corresponding to 27.5 day
@@ -73,6 +73,8 @@ class particle {
     double k_rr;                                                //radial diffusion coefficient
     double k_tt;                                                //pole angle diffusion coefficient
     double k_pp;                                                //azimuthal diffusion coefficient
+    double k_rr10 = 0.;
+    double k_tt10 = 0.;
 
     double Br;                                                  //magnetic field components in three direction
     double Bp;                                                  //
@@ -132,14 +134,14 @@ class particle {
     double Theta_S(double, double) const;                                     //theat_s function
     double Phi0_S(double) const;
     const double Heav();                                        //get heaviside function
-    const double B_r(const double& r, const double &heaviside);                  //radial magnetic field function
-    const double B_p(const double& r, const double& theta, const double &heaviside);                  //azimuthal magnetic field function
+    const double B_r(const double& r, const double& theta, const double& phi, const double& heaviside);                  //radial magnetic field function
+    const double B_p(const double& r, const double& theta, const double& phi, const double& heaviside);                  //azimuthal magnetic field function
     double get_HCS_distance_old() const;
     double get_HCS_distance() const;
 
-    const double K_rr();
-    const double K_tt(double);
-    const double K_pp();
+    const double K_rr(const double& r, const double& theta, const double& phi, const double& psi, const double& B, const double& B0, const double& M_p, const double& M_p0, const double& V_p);
+    const double K_tt(const double& r, const double& theta, const double& phi, const double& psi, const double& B, const double& B0, const double& M_p, const double& M_p0, const double& V_p);
+    const double K_pp(const double& r, const double& theta, const double& phi, const double& psi, const double& B, const double& B0, const double& M_p, const double& M_p0, const double& V_p);
 
     void HCS_rphi(const double &r, const double &phi, double& x, double& y, double& z) const;
     //double HCS_xy_z(const double &x, const double &y) const;
@@ -147,7 +149,8 @@ class particle {
     double Ek;                                                  //kinetic energy
     double M_p;                                                 // momentum of particle
     double V_p;                                                 // velocity of praticle
-    double r = (1.)*Unit::AU;                              // radial distance
+    double r = (1)*Unit::AU;                              // radial distance
+    double r10 = 0;
     double theta = Unit::deg*(90)+pow(10.,-10.);
     double phi = pow(10.,-10.);
 };

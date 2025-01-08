@@ -1,9 +1,0 @@
-/home/jiang/helprop2/CMakeFiles/helprop.dir
-/home/jiang/helprop2/CMakeFiles/HelProp.dir
-/home/jiang/helprop2/CMakeFiles/IOTest.dir
-/home/jiang/helprop2/CMakeFiles/ParticleTest.dir
-/home/jiang/helprop2/CMakeFiles/edit_cache.dir
-/home/jiang/helprop2/CMakeFiles/rebuild_cache.dir
-/home/jiang/helprop2/docopt/CMakeFiles/docopt.dir
-/home/jiang/helprop2/docopt/CMakeFiles/edit_cache.dir
-/home/jiang/helprop2/docopt/CMakeFiles/rebuild_cache.dir

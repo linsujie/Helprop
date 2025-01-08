@@ -1,1 +1,0 @@
-/usr/bin/c++ -fPIC -std=c++20 -O2 -shared -Wl,-soname,libhelprop.so -o lib/libhelprop.so CMakeFiles/helprop.dir/src/particle.cc.o CMakeFiles/helprop.dir/src/IO.cc.o CMakeFiles/helprop.dir/src/fcache.cc.o CMakeFiles/helprop.dir/src/newton_solver.cc.o CMakeFiles/helprop.dir/src/root_finding.cc.o  /usr/lib/x86_64-linux-gnu/libnlopt.so

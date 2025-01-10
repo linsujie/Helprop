@@ -14,7 +14,19 @@ using namespace Unit;
 double particle::angle = 45 * deg;
 particle::HCSFORM particle::hcsform = Jokipii_Thomas;
 
-particle::particle() {}
+particle::particle() {
+  mass = 0.93827 * GeV;
+  B0 = 5 * nT;
+  polarity = -1;
+  angle = 15 * deg;
+  D = 5 * 1e22 * cm * cm / sec;
+  indexA = 2;
+
+  theta = pi / 2.0 + 1e-6;
+  Vs_eq = Wind();
+
+  Bn = B0 * AU * AU / 1.35883;
+}
 
 particle::particle(const map<string, docopt::value>& args)
 {
@@ -110,6 +122,9 @@ double particle::Theta_S(double r, double phi) const {
 
   assert(false && "hcsform not supported");
   return 0;
+}
+extern "C" double Theta_S_C(double r, double phi) {
+  return particle().Theta_S(r * AU, phi);
 }
 double particle::Phi0_S(double theta) const {
   if (hcsform == Jokipii_Thomas)
@@ -785,6 +800,4 @@ void particle::step(const string& logname) {
   //   logfile << r/AU << "  " << theta << "  " << phi << "  " << Ek / GeV << std::endl;
   // }
   // if (logfile.is_open()) logfile.close();
-  cout << "particle over" << endl;
-  getchar();
 }

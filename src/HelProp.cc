@@ -75,7 +75,7 @@ vector<double> count_distribution(const vector<particle>& Particle, const vector
 
   bin.resize(ekin.size());
   for (int j = 0; j < number; j++) {
-    double eng = Particle[j].Ek;
+    double eng = Particle[j].Ek / Unit::GeV;
     for (int k = 0; k < ekin.size(); k++) {
       if (k == 0) {
         double x1 = log(ekin[k + 1]) / 2. - log(ekin[k]) / 2.;
@@ -162,8 +162,6 @@ int main(int argc, char* argv[]) {
 
     auto bin = count_distribution(Particle, ekin);
     weight.push_back(bin);
-    std::cout << "get Out" << std::endl;
-    getchar();
   }
 
   if (bool(args.at("<outmatrix>"))) {

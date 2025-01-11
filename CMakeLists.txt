@@ -28,6 +28,9 @@ ENDIF()
 ADD_LIBRARY(helprop SHARED src/particle.cc src/IO.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc)
 TARGET_LINK_LIBRARIES(helprop ${NLOPT_LIBRARIES})
 
+ADD_LIBRARY(helprop4py SHARED src/particle.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc)
+TARGET_LINK_LIBRARIES(helprop4py ${NLOPT_LIBRARIES})
+
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
 
 FOREACH(var HelProp IOTest ParticleTest)

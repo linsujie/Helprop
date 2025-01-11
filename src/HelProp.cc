@@ -60,11 +60,24 @@ vector<particle> simulating(const particle& template_particle, int number, int t
     }
   };
 
-  for (int ith = 0; ith < th_num; ith++)
-    threads.emplace_back(thread_run, ith * n_per_thread, min((ith + 1) * n_per_thread, number));
+  if (th_num > 1) {
+    for (int ith = 0; ith < th_num; ith++)
+        threads.emplace_back(thread_run, ith * n_per_thread, min((ith + 1) * n_per_thread, number));
 
-  for (int j = 0; j < th_num; j++)
-    threads[j].join();
+    for (int j = 0; j < th_num; j++)
+        threads[j].join();
+  } else {
+    for (int i = 0; i < number; i++) {
+      Particle[i] = template_particle;
+      if (!Particle[i].fix_seed)
+        Particle[i].seed += i;
+
+      Particle[i].step();
+      cerr << ">>particle " << i << " seed " << Particle[i].seed << ": "
+        << " Ek " << template_particle.Ek / Unit::GeV
+        << "GeV -> " << Particle[i].Ek / Unit::GeV << "GeV" << endl;
+    }
+  }
   return Particle;
 }
 
@@ -75,7 +88,7 @@ vector<double> count_distribution(const vector<particle>& Particle, const vector
 
   bin.resize(ekin.size());
   for (int j = 0; j < number; j++) {
-    double eng = Particle[j].Ek;
+    double eng = Particle[j].Ek / Unit::GeV;
     for (int k = 0; k < ekin.size(); k++) {
       if (k == 0) {
         double x1 = log(ekin[k + 1]) / 2. - log(ekin[k]) / 2.;
@@ -162,8 +175,6 @@ int main(int argc, char* argv[]) {
 
     auto bin = count_distribution(Particle, ekin);
     weight.push_back(bin);
-    std::cout << "get Out" << std::endl;
-    getchar();
   }
 
   if (bool(args.at("<outmatrix>"))) {

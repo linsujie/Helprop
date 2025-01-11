@@ -105,7 +105,7 @@ int main() {
     p1.r = rs[i];
     p1.phi = phis[i];
     p1.theta = thetas[i];
-    d2.push_back(p1.get_HCS_distance_old());
+    d2.push_back(p1.get_HCS_distance_old(1e-4 * AU));
   }
   //clock_t t3 = clock();
 
@@ -124,7 +124,7 @@ int main() {
   p1.r = rs[2197];// 1.983 * AU;
   p1.theta = thetas[2197];// 148.529 * deg;
   p1.phi = phis[2197];// 12.9353 * deg;
-  double dold = p1.get_HCS_distance_old() / AU;
+  double dold = p1.get_HCS_distance_old(1e-4 * AU) / AU;
   double d = p1.get_HCS_distance() / AU;
   cout << dold << " " << d << endl;
   return 0;

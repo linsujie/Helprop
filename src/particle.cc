@@ -1,4 +1,5 @@
 #include <cassert>
+#include <sstream>
 #include <iomanip>
 
 #include "Vec.hh"
@@ -624,9 +625,11 @@ void particle::step(const string& logname) {
   double record_T = 0.;
   hcsform = Kota_Jokipii;
 
-  std::ofstream logfile("logname");//, std::ios::app
-  // if (logfile.is_open())
-  //   logfile << "r[AU],theta[deg],phi[deg],Ek[GeV],drift,Vdr_gc[km/s]" << endl;
+  ostringstream osname;
+  if (!logname.empty()) osname << "s" << seed << "_" << logname;
+  std::ofstream logfile(osname.str());
+  if (logfile.is_open())
+     logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],drift,Vdr_gc[km/s]" << endl;
 
   // theta = 1e-3;
   double Dt = 0;
@@ -770,9 +773,8 @@ void particle::step(const string& logname) {
     // logfile << Dt/3600./24. << "  " << r/AU << "  " << theta << "  " << Vs*dt << "  " << Vdr_gc*dt << "  " << Vdr_HCS*dt << "  " << 
     // 1. / r / r * (r*(1+1e-3) * r*(1+1e-3) * k_rr1 - r * r * k_rr) / (r*1e-3) * dt << "  " << sqrt(2. * fabs(k_rr) * dt) * dwr << std::endl;
     // logfile << r/AU << "  " << k_rr << "  " << psi << std::endl;
-    // if (logfile.is_open())
-      // logfile << r/AU << "," << theta << "," << phi  << "," << Ek / GeV << "," << drift << "," << Vdr_gc << endl;
-    logfile << Dt / 3600. / 24. / 30. << "  " << r/AU << "  " << theta << "  " << phi  << "  " << Ek / GeV << endl;
+    if (logfile.is_open())
+       logfile << Dt/day/30 << "," << r/AU << "," << theta << "," << phi  << "," << Ek / GeV << "," << drift << "," << Vdr_gc << endl;
     // logfile << Dt / 3600. / 24. / 30. << "  " << r/AU << "  " << theta << "  " << Ek / GeV << endl;
     // getchar();
     // if(theta<pi*10./180. || pi*170./180.<theta) break;
@@ -784,7 +786,6 @@ void particle::step(const string& logname) {
   // if(90 < r/AU)  {
   //   logfile << r/AU << "  " << theta << "  " << phi << "  " << Ek / GeV << std::endl;
   // }
-  // if (logfile.is_open()) logfile.close();
+  if (logfile.is_open()) logfile.close();
   cout << "particle over" << endl;
-  getchar();
 }

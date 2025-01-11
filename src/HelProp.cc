@@ -50,7 +50,7 @@ vector<particle> simulating(const particle& template_particle, int number, int t
   auto thread_run = [template_particle, &Particle](int iplow, int ipup) mutable {
     for (int i = iplow; i < ipup; i++) {
       Particle[i] = template_particle;
-      if (!Particle[i].fix_seed)
+      if (Particle[i].fix_seed)
         Particle[i].seed += i;
 
       Particle[i].step();

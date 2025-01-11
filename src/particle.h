@@ -46,6 +46,9 @@ namespace Unit {
   const double V = J / C;
   const double epsilon_0 = 8.854e-12 * C / (V * m); //permittivity of free space in F/m
 };
+
+enum Polygon { Dodecahedron, Icosahedron, test };
+
 class particle {
     public:
 
@@ -136,8 +139,9 @@ class particle {
     const double Heav();                                        //get heaviside function
     const double B_r(const double& r, const double& theta, const double& phi, const double& heaviside);                  //radial magnetic field function
     const double B_p(const double& r, const double& theta, const double& phi, const double& heaviside);                  //azimuthal magnetic field function
-    double get_HCS_distance_old() const;
+    double get_HCS_distance_old(double ftol_abs) const;
     double get_HCS_distance() const;
+    double get_HCS_distance_polygon(double Rg2, Polygon polygon = Polygon::Dodecahedron) const;
 
     const double K_rr(const double& r, const double& theta, const double& phi, const double& psi, const double& B, const double& B0, const double& M_p, const double& M_p0, const double& V_p);
     const double K_tt(const double& r, const double& theta, const double& phi, const double& psi, const double& B, const double& B0, const double& M_p, const double& M_p0, const double& V_p);

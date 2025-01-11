@@ -1,4 +1,5 @@
 #include <cassert>
+#include <sstream>
 #include <iomanip>
 
 #include "Vec.hh"
@@ -708,6 +709,7 @@ double particle::get_HCS_distance() const {
   double rlow, rup;
   double phi0 = Phi0_S(theta);
   r_bound(r, phi, phi0, rlow, rup);
+  if (rlow < 0) rlow = 1e-2*AU; // Avoid negative radius
 
   double phi_cs = phi, theta_cs = theta;
   if (theta_cs < pi / 2 - angle) theta_cs = pi / 2 - angle;
@@ -739,21 +741,21 @@ double particle::get_HCS_distance() const {
   };
 
   int ilow = 0, imid = 0, iup = 0;
-  //cout << "----------------------------------------------" << endl;
+  //cout << "----------------------low------------------------" << endl;
   double dlow = 1e5 * AU;
   if ((rup - r) / (r - rlow) > 0.35) {
     p_cs.set_spherical(rlow, theta_cs, phi_cs);
     dlow = distance_iter(p_cs, ilow);
   }
 
-  //cout << "----------------------------------------------" << endl;
+  //cout << "----------------------mid------------------------" << endl;
   double dmid = 1e5 * AU;
   if (fabs(pi / 2 - theta) < angle) {
     p_cs.set_spherical(r, Theta_S(r, phi), phi);
     dmid = distance_iter(p_cs, imid);
   }
 
-  //cout << "----------------------------------------------" << endl;
+  //cout << "----------------------up------------------------" << endl;
   double dup = 1e5 * AU;
   if ((r - rlow) / (rup - r) > 0.35) {
     p_cs.set_spherical(rup, theta_cs, phi_cs);
@@ -789,9 +791,11 @@ void particle::step(const string& logname) {
   double record_T = 0.;
   hcsform = Kota_Jokipii;
 
-  std::ofstream logfile("logname");//, std::ios::app
-  // if (logfile.is_open())
-  //   logfile << "r[AU],theta[deg],phi[deg],Ek[GeV],drift,Vdr_gc[km/s]" << endl;
+  ostringstream osname;
+  if (!logname.empty()) osname << "s" << seed << "_" << logname;
+  std::ofstream logfile(osname.str());
+  if (logfile.is_open())
+     logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],drift,Vdr_gc[km/s]" << endl;
 
   // theta = 1e-3;
   double Dt = 0;
@@ -920,26 +924,13 @@ void particle::step(const string& logname) {
     if (phi < 0.) phi = 2. * pi + phi;
     else if (2. * pi < phi) phi -= 2. * pi;
 
-    // if(10*30*24*3600<Dt) {
-    //   std::cout << "break" << std::endl;make
-    //   continue;
-    // }
-
-    // logfile << r/AU << "   " << theta << "   " << Vdr_HCS << "  " << Vdt_HCS << "  " << Vdp_HCS << "   " << heaviside << "  " << beta << "  " << delta << std::endl;
-    // logfile << r / AU << "  " << theta << "  " << Vs*dt << "  " << Vdr_gc*dt << "  " << Vdr_HCS*dt << "  " << sqrt(2. * fabs(k_rr) * dt) * dwr << std::endl;
     // logfile << r / AU << "  " << theta << "  " << 1. * Vdt_gc / r*dt << "  " << Vdt_HCS / r*dt << "  " << 1. / (r * r * sin(theta)) * cos(theta) * k_tt * dt << "  " << 1. / r * sqrt(2. * fabs(k_tt) * dt) * dwt << std::endl;
     // logfile << r/AU << "  " << M_p / GeV << "  " << Ek/GeV << std::endl;
     // if(60*60*24*365*1.5<record_T) break;
     // logfile << r/AU << "  " << theta << "  " << Vdt_gc / r * dt << "  " << 1. / (r * r * sin(theta)) * cos(theta) * k_tt * dt << "  " << k_tt << "  " << 1. / r * sqrt(2. * fabs(k_tt) * dt) * dwt << std::endl;
     // logfile << r/AU << "  " << theta << "  " << Vdr_HCS << "  " << Vdr_gc << "  " << Vdt_HCS << "  " << Vdt_gc << "  " << Vs << "  " << drift << std::endl;
-    // logfile << Dt/3600./24. << "  " << r/AU << "  " << theta << "  " << Vs*dt << "  " << Vdr_gc*dt << "  " << Vdr_HCS*dt << "  " << 
-    // 1. / r / r * (r*(1+1e-3) * r*(1+1e-3) * k_rr1 - r * r * k_rr) / (r*1e-3) * dt << "  " << sqrt(2. * fabs(k_rr) * dt) * dwr << std::endl;
-    // logfile << r/AU << "  " << k_rr << "  " << psi << std::endl;
-    // if (logfile.is_open())
-      // logfile << r/AU << "," << theta << "," << phi  << "," << Ek / GeV << "," << drift << "," << Vdr_gc << endl;
-    logfile << Dt / 3600. / 24. / 30. << "  " << r/AU << "  " << theta << "  " << phi  << "  " << Ek / GeV << endl;
-    // logfile << Dt / 3600. / 24. / 30. << "  " << r/AU << "  " << theta << "  " << Ek / GeV << endl;
-    // getchar();
+    if (logfile.is_open())
+       logfile << Dt/day/30 << "," << r/AU << "," << theta << "," << phi  << "," << Ek / GeV << "," << drift << "," << Vdr_gc << endl;
     // if(theta<pi*10./180. || pi*170./180.<theta) break;
     // if(24*30*120*3600.<Dt){
     //   std::cout << "Out time" << std::endl;
@@ -949,5 +940,5 @@ void particle::step(const string& logname) {
   // if(90 < r/AU)  {
   //   logfile << r/AU << "  " << theta << "  " << phi << "  " << Ek / GeV << std::endl;
   // }
-  // if (logfile.is_open()) logfile.close();
+  if (logfile.is_open()) logfile.close();
 }

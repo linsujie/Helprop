@@ -60,11 +60,24 @@ vector<particle> simulating(const particle& template_particle, int number, int t
     }
   };
 
-  for (int ith = 0; ith < th_num; ith++)
-    threads.emplace_back(thread_run, ith * n_per_thread, min((ith + 1) * n_per_thread, number));
+  if (th_num > 1) {
+    for (int ith = 0; ith < th_num; ith++)
+        threads.emplace_back(thread_run, ith * n_per_thread, min((ith + 1) * n_per_thread, number));
 
-  for (int j = 0; j < th_num; j++)
-    threads[j].join();
+    for (int j = 0; j < th_num; j++)
+        threads[j].join();
+  } else {
+    for (int i = 0; i < number; i++) {
+      Particle[i] = template_particle;
+      if (!Particle[i].fix_seed)
+        Particle[i].seed += i;
+
+      Particle[i].step();
+      cerr << ">>particle " << i << " seed " << Particle[i].seed << ": "
+        << " Ek " << template_particle.Ek / Unit::GeV
+        << "GeV -> " << Particle[i].Ek / Unit::GeV << "GeV" << endl;
+    }
+  }
   return Particle;
 }
 

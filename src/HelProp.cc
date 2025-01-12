@@ -69,7 +69,7 @@ vector<particle> simulating(const particle& template_particle, int number, int t
   } else {
     for (int i = 0; i < number; i++) {
       Particle[i] = template_particle;
-      if (!Particle[i].fix_seed)
+      if (Particle[i].fix_seed)
         Particle[i].seed += i;
 
       Particle[i].step();

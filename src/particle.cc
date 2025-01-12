@@ -351,23 +351,21 @@ class SpiralVdot {
   }
 };
 
-void particle::spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter) const {
+bool particle::spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter) const {
   double ov = Omega / Vs_eq;
 
   SpiralVdot vdot(ov, p_cs, target_point);
 
   double vdot0 = vdot(vdot.r_cs0);
-  if (vdot0 == 0) {
-    diter = 0;
-    return;
-  }
+  if (vdot0 == 0) return false;
 
   double r1;
   double dangle = - asin(vdot0) * fmin(diter / vdot.r_cs0, 1); // the dangle should be smaller when the distance is much small than r_cs
 
+  int id = 0;
   do {
-    dangle *= 2;
-    r1 = (vdot.phi0 - vdot.phi_cs0 - dangle * 2) / ov;
+    id++;
+    r1 = (vdot.phi0 - vdot.phi_cs0 - id * dangle) / ov;
   } while (vdot(r1) * vdot0 > 0);
   //if (r1 < 0) r1 = 1e-5 * AU;
 
@@ -378,8 +376,10 @@ void particle::spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter)
 
   double diter_next = (target_point - p_cs).len();
   //cout << "diter -> next: " << diter / AU << " " << diter_next / AU << endl;
+  assert(rh > 0 && "the spiral_iterate should not give a negative radius");
   assert(diter_next < diter * (1 + 1e-8) && "the spiral_iterate should decrease the distance to the target point");
   diter = diter_next;
+  return true;
 }
 
 class WaveVdot {
@@ -429,7 +429,7 @@ class WaveVdot {
     return dv;
   }
 
-  double operator()(double r) const {
+  double operator()(double r, double *vdot_r = NULL) const {
     Vec p_cs;
     if (r == r_cs0) p_cs = p_cs0;
     else
@@ -437,24 +437,32 @@ class WaveVdot {
 
     //cout << "-- " << r / AU << " " << (target_point - p_cs).dot(tangent_vec(r, p_cs)) / AU << endl;
     Vec dl = target_point - p_cs;
-    //cout << "r p_cs dl vdot: " << r / AU << " " << r_cs0 / AU << " " << theta_s  << " " << theta_s0 << " | " << p_cs / AU << " " << dl / AU << " " << dl.dot(tangent_vec(r, p_cs)) / AU << endl;
+    Vec vtangent = tangent_vec(r, p_cs);
+    //auto show_vec = [](const Vec& v) {
+    //  cout << " [" << sqrt(v.x * v.x + v.y * v.y) << "," << v.z << "]" << " " << v.phi() / deg;
+    //};
+    //cout << "r p_cs dl vtangent vdot: " << r / AU << " | ";
+    //show_vec(target_point / AU);
+    //show_vec(p_cs / AU);
+    //show_vec(dl / AU);
+    //show_vec(vtangent);
+    //cout << " " << dl.dot(tangent_vec(r, p_cs)) / AU << endl;
+    if (vdot_r != NULL) *vdot_r = fabs(p_cs.dot(vtangent) / p_cs.len());
 
-    return dl.dot(tangent_vec(r, p_cs)) / dl.len();
+    return dl.dot(vtangent) / dl.len();
   }
 };
 
-void particle::wave_iterate(const Vec& target_point, Vec& p_cs, double& diter) const {
+bool particle::wave_iterate(const Vec& target_point, Vec& p_cs, double& diter) const {
   double ov = Omega / Vs_eq;
 
   WaveVdot vdot(ov, p_cs, target_point, this);
 
-  double vdot0 = vdot(vdot.r_cs0);
-  if (vdot0 == 0) {
-    diter = 0;
-    return;
-  }
+  double vdot_r;
+  double vdot0 = vdot(vdot.r_cs0, &vdot_r);
+  if (vdot0 == 0) return false;
 
-  double vdr = vdot0 * (target_point - vdot.p_cs0).len();
+  double vdr = vdot0 * (target_point - vdot.p_cs0).len() * vdot_r;
   if (fabs(vdr) > pi / 2 / ov) vdr = pi / 2 / ov * (vdr > 0 ? 1 : -1);
 
   int ir = 0;
@@ -463,15 +471,26 @@ void particle::wave_iterate(const Vec& target_point, Vec& p_cs, double& diter) c
     ir++;
     r1 = vdot.r_cs0 + ir * vdr;
   } while (vdot(r1) * vdot0 > 0);
+  //double vd1 = vdot(vdot.r_cs0);
+  //double vd2 = vdot(vdot.r_cs0 + vdr);
+  //double vd3 = vdot(vdot.r_cs0 + 2 * vdr);
+  //cout << "ir = " << ir << " " << vdr / AU << " " << vdot.r_cs0 / AU << " " << (vdot.r_cs0 + vdr) / AU << " " << r1 / AU << " | " << vd1 << " " << vd2 << " " << vd3 << endl;
 
+  //for (double vr = 0.1 * AU; vr < 5.2 * AU; vr += 0.05 * AU)
+  //  cout << "-- " << vr / AU << " " << Theta_S(vr, vdot.phi_cs) / deg << " " << vdot(vr) << endl;
   double rh = ridders_method(vdot, vdot.r_cs0, r1, 1e-3);
   //cout << vdot.r_cs0 / AU << " " << rh / AU << " " << r1 / AU << " | " << vdot0 << " " << vdot(rh) << " " << vdot(r1) << endl;
-  p_cs.set_spherical(rh, Theta_S(rh, vdot.phi_cs), vdot.phi_cs);
+  //cout << "p_cs before: " << p_cs.len() / AU << " " << p_cs.theta() / deg << " " << Theta_S(p_cs.len(), vdot.phi_cs) / deg << " " << vdot.phi_cs / deg << " " << p_cs.phi() / deg << " " << p_cs / AU << endl;
+  //cout << "set with: " << rh / AU << " " << Theta_S(rh, vdot.phi_cs) / deg << " " << vdot.phi_cs / deg << endl;
+  //p_cs.set_spherical(rh, Theta_S(rh, vdot.phi_cs), vdot.phi_cs);
+  //cout << "set over: " << p_cs.len() / AU << " " << p_cs.theta() / deg << " " << p_cs.phi() / deg << endl;
+  //cout << "p_cs after:  " << p_cs.len() / AU << " " << p_cs.theta() / deg << " " << Theta_S(p_cs.len(), vdot.phi_cs) / deg << " " << p_cs / AU << endl;
   //cout << "==== " << rh / AU << " " << vdot(rh) << " | " << (target_point - vdot.p_cs0).len() / AU << " " << (target_point - p_cs).len() / AU << endl;
 
   double diter_next = (target_point - p_cs).len();
   assert(diter_next <= diter * (1 + 1e-8) && "the wave_iterate should decrease the distance to the target point");
   diter = diter_next;
+  return true;
 }
 
 Vec particle::norm_vec(const Vec& p_cs) const {
@@ -520,7 +539,7 @@ Vec particle::norm_vec(const Vec& p_cs) const {
   return dh;
 }
 
-void particle::point_iterate(const Vec& target_point, Vec& p_cs, Vec& dh, double& diter) const {
+bool particle::point_iterate(const Vec& target_point, Vec& p_cs, Vec& dh, double& diter) const {
   Vec dl = p_cs - target_point;
 
   Vec pnext = target_point + dh * dh.dot(dl);
@@ -551,6 +570,7 @@ void particle::point_iterate(const Vec& target_point, Vec& p_cs, Vec& dh, double
   p_cs = pnext;
   dh = dh_next;
   diter = (target_point - p_cs).len();
+  return true;
 }
 
 double particle::get_HCS_distance_polygon(double Rg2, Polygon polygon) const {
@@ -720,6 +740,7 @@ double particle::get_HCS_distance() const {
            diter_last = 1e5 * AU;
 
     point.set_spherical(point.len(), Theta_S(point.len(), point.phi()), point.phi()); // initialize the point to HCS.
+    //cout << "begin:   " << r / AU << " " << theta / deg << " " << phi / deg << " | " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg << " -> " << diter / AU << endl;
     Vec dh = norm_vec(point);
     int viter = 0;
     while (diter == 1e5 * AU || diter_last == 1e5 * AU || fabs(diter_last - diter) / diter_last > 1e-4) {
@@ -741,6 +762,7 @@ double particle::get_HCS_distance() const {
   };
 
   int ilow = 0, imid = 0, iup = 0;
+
   //cout << "----------------------low------------------------" << endl;
   double dlow = 1e5 * AU;
   if ((rup - r) / (r - rlow) > 0.35) {
@@ -848,8 +870,13 @@ void particle::step(const string& logname) {
     if(Z*polarity<0) beta = pi + beta;
     else if(0<Z*polarity) beta = beta;
 
+    //if (fabs(r - 66.76 * AU) / r < 0.01) logfile << setprecision(15);
+    //r = 66.7606607635679 * AU;
+    //theta = 2.12431446451745;
+    //phi = 2.4543874540613;
     double Rg = M_p / (B * Z * e * c_speed);
     double d_HCS = fabs(get_HCS_distance());
+    //exit(0);
     double Vns = 0.;
     if(d_HCS<2.*Rg) Vns = (0.457 - 0.412 * d_HCS / Rg + 0.0915 * d_HCS * d_HCS / Rg / Rg) * V_p * A_drift;//
 

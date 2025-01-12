@@ -104,9 +104,9 @@ class particle {
     }
     void r_bound(double r, double phi, double phi0, double& rlow, double& rup) const;
 
-    void spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter) const;
-    void wave_iterate(const Vec& target_point, Vec& p_cs, double& diter) const;
-    void point_iterate(const Vec& target_point, Vec& p_cs, Vec& dh, double& diter) const;
+    bool spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter) const;
+    bool wave_iterate(const Vec& target_point, Vec& p_cs, double& diter) const;
+    bool point_iterate(const Vec& target_point, Vec& p_cs, Vec& dh, double& diter) const;
 
     Vec norm_vec(const Vec& p_cs) const;
 

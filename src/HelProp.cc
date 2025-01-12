@@ -160,7 +160,7 @@ int main(int argc, char* argv[]) {
   vector<vector<double>> weight;  // possibility matrix
 
   int number = args.at("--number").asLong();
-  int th_num = 1;//args.at("--nthread").asLong();
+  int th_num = args.at("--nthread").asLong();
   particle one(args);
   bool fix_seed = bool(args.at("--seed"));
   long seed = fix_seed ? args.at("--seed").asLong() : 0;

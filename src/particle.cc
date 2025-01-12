@@ -958,6 +958,11 @@ void particle::step(const string& logname) {
     // logfile << r/AU << "  " << theta << "  " << Vdr_HCS << "  " << Vdr_gc << "  " << Vdt_HCS << "  " << Vdt_gc << "  " << Vs << "  " << drift << std::endl;
     if (logfile.is_open())
        logfile << Dt/day/30 << "," << r/AU << "," << theta << "," << phi  << "," << Ek / GeV << "," << drift << "," << Vdr_gc << endl;
+
+    //if (r > 120 * AU) {
+    //  cout << seed << " " << r / AU << " " << theta / deg << " " << phi / deg << endl;
+    //}
+    //assert(r < 120 * AU && "The particle should not get out of the solar system too much");
     // if(theta<pi*10./180. || pi*170./180.<theta) break;
     // if(24*30*120*3600.<Dt){
     //   std::cout << "Out time" << std::endl;

@@ -948,8 +948,8 @@ void particle::step(const string& logname) {
       theta = 3.14-5*1e-3;
     }
 
-    if (phi < 0.) phi = 2. * pi + phi;
-    else if (2. * pi < phi) phi -= 2. * pi;
+    if (phi < 0 || 2 * pi < phi)
+      phi -= floor(phi / (2 * pi)) * 2 * pi;
 
     // logfile << r / AU << "  " << theta << "  " << 1. * Vdt_gc / r*dt << "  " << Vdt_HCS / r*dt << "  " << 1. / (r * r * sin(theta)) * cos(theta) * k_tt * dt << "  " << 1. / r * sqrt(2. * fabs(k_tt) * dt) * dwt << std::endl;
     // logfile << r/AU << "  " << M_p / GeV << "  " << Ek/GeV << std::endl;

@@ -12,6 +12,8 @@ public:
   ~IO() {}
   enum WRITEMODE { RECREATE, APPEND };
   std::map<std::string, double> params;
+  std::vector<long> seed;
+  std::vector<double> ETOA, ELIS;
   void set_params(const std::map<std::string, docopt::value>& args);
   virtual bool readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry = 1);
   virtual bool writespec(const std::string& filename, const std::vector<double>& E, const std::vector<double>& F, WRITEMODE mode = RECREATE) const;

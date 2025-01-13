@@ -356,7 +356,8 @@ bool IO_BSON::writespec(const std::string& filename, const std::vector<double>& 
 
 struct MatrixBson {
   map<string, double> params;
-  std::vector<double> E;
+  std::vector<long> seed;
+  std::vector<double> E, ETOA, ELIS;
   std::vector<std::vector<double> > M;
 };
 bool IO_BSON::readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry) {
@@ -377,7 +378,7 @@ bool IO_BSON::writematrix(const std::string& filename, const std::vector<double>
     return false;
   }
 
-  const auto matrix = MatrixBson{.params=params, .E = E, .M = M};
+  const auto matrix = MatrixBson{.params=params, .seed = seed, .E = E, .ETOA = ETOA, .ELIS = ELIS, .M = M};
   vector<char> bmatrix = rfl::bson::write(matrix);
 
   FILE *of = fopen(filename.c_str(), mode == APPEND ? "a" : "w");

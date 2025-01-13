@@ -131,6 +131,7 @@ This Routine is used to simulate the modulation of particle within heliosphere.
       -D D, --D D                       Diffusion factor in unit 1e22 cm^2/s [default: 5].
       --indexA INDEXA                   Diffusion index a [default: 2].
       --ekins EKINS                     The ekin assigned in format min,max,nbin in GeV, this option would only act when no inspec is assigned [default: 0.1,10,40].
+      --sample                          If given, to store the samples to the outmatrix or not, only available for BSON format.
       --iotype IOTYPE                   The input/output type (TXT, CSV, or BSON) [default: TXT].
       --append                          Append the output to existing file [default: false].
 )";
@@ -175,6 +176,12 @@ int main(int argc, char* argv[]) {
 
     auto bin = count_distribution(Particle, ekin);
     weight.push_back(bin);
+    if (args.at("--sample").asBool())
+      for (const auto& p : Particle) {
+        io->seed.push_back(p.seed);
+        io->ETOA.push_back(one.Ek / Unit::GeV);
+        io->ELIS.push_back(p.Ek / Unit::GeV);
+      }
   }
 
   if (bool(args.at("<outmatrix>"))) {

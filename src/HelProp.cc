@@ -41,19 +41,19 @@ vector<double> get_ekin(const string& ekin_opt) {
     return ekin;
 }
 
-vector<particle> simulating(const particle& template_particle, int number, int th_num) {
+vector<particle> simulating(const particle& template_particle, int number, int th_num, const string& logname) {
   int n_per_thread = ceil(double(number) / th_num);
 
   vector<particle> Particle;
   Particle.resize(number);
   vector<thread> threads;
-  auto thread_run = [template_particle, &Particle](int iplow, int ipup) mutable {
+  auto thread_run = [template_particle, &Particle, &logname](int iplow, int ipup) mutable {
     for (int i = iplow; i < ipup; i++) {
       Particle[i] = template_particle;
       if (Particle[i].fix_seed)
         Particle[i].seed += i;
 
-      Particle[i].step();
+      Particle[i].step(logname);
       cerr << ">>particle " << i << " seed " << Particle[i].seed << ": "
         << " Ek " << template_particle.Ek / Unit::GeV
         << "GeV -> " << Particle[i].Ek / Unit::GeV << "GeV" << endl;
@@ -72,7 +72,7 @@ vector<particle> simulating(const particle& template_particle, int number, int t
       if (Particle[i].fix_seed)
         Particle[i].seed += i;
 
-      Particle[i].step();
+      Particle[i].step(logname);
       cerr << ">>particle " << i << " seed " << Particle[i].seed << ": "
         << " Ek " << template_particle.Ek / Unit::GeV
         << "GeV -> " << Particle[i].Ek / Unit::GeV << "GeV" << endl;
@@ -134,6 +134,7 @@ This Routine is used to simulate the modulation of particle within heliosphere.
       --sample                          If given, to store the samples to the outmatrix or not, only available for BSON format.
       --iotype IOTYPE                   The input/output type (TXT, CSV, or BSON) [default: TXT].
       --append                          Append the output to existing file [default: false].
+      --logname LOGNAME                 The output logfile name [default: ""].
 )";
 int main(int argc, char* argv[]) {
   std::map<std::string, docopt::value> args = docopt::docopt(USAGE, {argv + 1, argv + argc}, true);
@@ -172,7 +173,7 @@ int main(int argc, char* argv[]) {
     one.seed = seed + i * number;
 
     cout << "simulating Ek = " << one.Ek / Unit::GeV << endl;
-    auto Particle = simulating(one, number, th_num);
+    auto Particle = simulating(one, number, th_num, args.at("--logname").asString());
 
     auto bin = count_distribution(Particle, ekin);
     weight.push_back(bin);

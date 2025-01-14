@@ -6,6 +6,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <cassert>
 #include "docopt.h"
 #include "particle.h"
 #include "IO.h"
@@ -81,33 +82,36 @@ vector<particle> simulating(const particle& template_particle, int number, int t
   return Particle;
 }
 
-vector<double> count_distribution(const vector<particle>& Particle, const vector<double>& ekin) {
-  int number = Particle.size();
+vector<double> count_GreenFunction(const vector<particle>& Particle, const vector<double>& ekin, int A = 1) {
+  const double m_proton = 0.938272 * Unit::GeV;
+  vector<double> momentum;
+  for (const auto& e : ekin)
+    momentum.push_back(sqrt(e * (e + 2. * A * m_proton)));
+
+  assert(ekin.size() >= 2 && "At least two energy grids are required in the generation of Green Function matrix.");
+  vector<double> ekin_bound;
+  ekin_bound.push_back(ekin[0]*sqrt(ekin[0]/ekin[1]));
+  for (int i = 0; i < ekin.size()-1; i++)
+    ekin_bound.push_back(sqrt(ekin[i] * ekin[i + 1]));
+  ekin_bound.push_back(ekin[ekin.size()-1]*sqrt(ekin[ekin.size()-1]/ekin[ekin.size()-2]));
 
   vector<double> bin;
-
   bin.resize(ekin.size());
-  for (int j = 0; j < number; j++) {
-    double eng = Particle[j].Ek / Unit::GeV;
-    for (int k = 0; k < ekin.size(); k++) {
-      if (k == 0) {
-        double x1 = log(ekin[k + 1]) / 2. - log(ekin[k]) / 2.;
-        if (log(ekin[k]) - x1 <= log(eng) && log(eng) < log(ekin[k]) + x1)
-          bin[k] += 1. / number;
-      } 
-      else if (0 < k && k < ekin.size() - 1) {
-        double x0 = log(ekin[k - 1]) / 2. + log(ekin[k]) / 2.;
-        double x1 = log(ekin[k + 1]) / 2. + log(ekin[k]) / 2.;
-        if (x0 <= log(eng) && log(eng) < x1)
-          bin[k] += 1. / number;
-      } 
-      else if (k == ekin.size() - 1) {
-        double x1 = log(ekin[k]) / 2. - log(ekin[k - 1]) / 2.;
-        if (log(ekin[k]) - x1 <= log(eng) && log(eng) < log(ekin[k]) + x1)
-          bin[k] += 1. / number;
-      }
-    }
+
+  int number = Particle.size();
+  for (const auto& p : Particle) {
+    int ibin = upper_bound(ekin_bound.begin(), ekin_bound.end(), p.Ek / Unit::GeV) - ekin_bound.begin();
+
+    if (0 < ibin && ibin < bin.size() + 1)
+      bin[ibin - 1] += 1;
   }
+
+  double sum = 0;
+  for (int i = 0; i < bin.size(); i++) {
+    bin[i] /= momentum[i] * momentum[i];
+    sum += bin[i];
+  }
+  for (auto& v : bin) v /= sum;
 
   return bin;
 }
@@ -134,7 +138,7 @@ This Routine is used to simulate the modulation of particle within heliosphere.
       --sample                          If given, to store the samples to the outmatrix or not, only available for BSON format.
       --iotype IOTYPE                   The input/output type (TXT, CSV, or BSON) [default: TXT].
       --append                          Append the output to existing file [default: false].
-      --logname LOGNAME                 The output logfile name [default: ""].
+      --logname LOGNAME                 The output logfile name.
 )";
 int main(int argc, char* argv[]) {
   std::map<std::string, docopt::value> args = docopt::docopt(USAGE, {argv + 1, argv + argc}, true);
@@ -173,9 +177,9 @@ int main(int argc, char* argv[]) {
     one.seed = seed + i * number;
 
     cout << "simulating Ek = " << one.Ek / Unit::GeV << endl;
-    auto Particle = simulating(one, number, th_num, args.at("--logname").asString());
+    auto Particle = simulating(one, number, th_num, bool(args.at("--logname")) ? args.at("--logname").asString() : "");
 
-    auto bin = count_distribution(Particle, ekin);
+    auto bin = count_GreenFunction(Particle, ekin);
     weight.push_back(bin);
     if (args.at("--sample").asBool())
       for (const auto& p : Particle) {

@@ -28,10 +28,10 @@ bool IO::readspec(const std::string& filename, std::vector<double>& E, std::vect
 bool IO::writespec(const std::string& filename, const std::vector<double>& E, const std::vector<double>& F, WRITEMODE mode) const {
   assert(false && "IO::writespec not implemented for selected type");
 }
-bool IO::readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry) {
+bool IO::readmatrix(const std::string& filename, std::vector<double>& ETOA, std::vector<double>& ELIS, std::vector< std::vector<double> >& M, int ientry) {
   assert(false && "IO::readmatrix not implemented for selected type");
 }
-bool IO::writematrix(const std::string& filename, const std::vector<double>& E, const std::vector< std::vector<double> >& M, WRITEMODE mode) const {
+bool IO::writematrix(const std::string& filename, const std::vector<double>& ETOA, const std::vector<double>& ELIS, const std::vector< std::vector<double> >& M, WRITEMODE mode) const {
   assert(false && "IO::writematrix not implemented for selected type");
 }
 
@@ -84,9 +84,10 @@ bool IO_TXT::writespec(const std::string& filename, const std::vector<double>& E
   return true;
 }
 
-bool IO_TXT::readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry) {
+bool IO_TXT::readmatrix(const std::string& filename, std::vector<double>& ETOA, std::vector<double>& ELIS, std::vector< std::vector<double> >& M, int ientry) {
   assert(ientry > 0 && "IO_TXT::readmatrix: ientry must be greater than 0");
-  E.clear();
+  ETOA.clear();
+  ELIS.clear();
   M.clear();
 
   ifstream data(filename);
@@ -105,17 +106,19 @@ bool IO_TXT::readmatrix(const std::string& filename, std::vector<double>& E, std
 
   istringstream ishead(line);
   ishead >> val;
-  while (ishead >> val) E.push_back(val);
+  while (ishead >> val) ELIS.push_back(val);
 
-  M.reserve(E.size());
+  M.reserve(ELIS.size());
   
   while (getline(data, line)) {
     if (line[0] == '#') break;
     M.resize(M.size() + 1);
     vector<double>& row = M.back();
-    row.reserve(E.size());
+    row.reserve(ELIS.size());
 
     istringstream is(line);
+    is >> val;
+    ETOA.push_back(val);
     while (is >> val) row.push_back(val);
   }
 
@@ -123,20 +126,21 @@ bool IO_TXT::readmatrix(const std::string& filename, std::vector<double>& E, std
   return true;
 }
 
-bool IO_TXT::writematrix(const std::string& filename, const std::vector<double>& E, const std::vector< std::vector<double> >& M, WRITEMODE mode) const {
-  if (E.size() != M.size()) {
-    cerr << "IO_TXT::writematrix: E and M have different sizes" << endl;
+bool IO_TXT::writematrix(const std::string& filename, const std::vector<double>& ETOA, const std::vector<double>& ELIS, const std::vector< std::vector<double> >& M, WRITEMODE mode) const {
+  if (ETOA.size() != M.size()) {
+    cerr << "IO_TXT::writematrix: ETOA and M have different sizes" << endl;
     return false;
   }
 
   ofstream of(filename, mode == APPEND ? ios::app : ios::trunc);
   of << setprecision(8) << setiosflags(ios::scientific);
   of << "# ";
-  for (int i = 0; i < E.size(); i++)
-    of << E[i] << " ";
+  for (int i = 0; i < ELIS.size(); i++)
+    of << ELIS[i] << " ";
   of << endl;
 
   for (int irow = 0; irow < M.size(); irow++) {
+    of << ETOA[irow] << " ";
     for (int icol = 0; icol < M[irow].size(); icol++)
       of << M[irow][icol] << " ";
     of << endl;
@@ -236,9 +240,10 @@ bool IO_CSV::writespec(const std::string& filename, const std::vector<double>& E
   return true;
 }
 
-bool IO_CSV::readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry) {
+bool IO_CSV::readmatrix(const std::string& filename, std::vector<double>& ETOA, std::vector<double>& ELIS, std::vector< std::vector<double> >& M, int ientry) {
   assert(ientry > 0 && "IO_CSV::readmatrix: ientry must be positive");
-  E.clear();
+  ETOA.clear();
+  ELIS.clear();
   M.clear();
 
   ifstream data(filename);
@@ -250,17 +255,21 @@ bool IO_CSV::readmatrix(const std::string& filename, std::vector<double>& E, std
   string line;
   int idata = 0;
   while (getline(data, line)) {
-    if (line.substr(0, 3) == "#E,") idata++;
+    if (line.substr(0, 6) == "#ELIS,") idata++;
     if (idata == ientry) break;
   }
 
-  double val;
   line.erase(0, 3);
-  E = split<double>(line, ",");
+  ELIS = split<double>(line, ",");
 
   getline(data, line);
+  line.erase(0, 3);
+  ETOA = split<double>(line, ",");
 
-  M.reserve(E.size());
+  double val;
+  getline(data, line);
+
+  M.reserve(ETOA.size());
   while (getline(data, line)) {
     if (line[0] == '#') break;
     M.resize(M.size() + 1);
@@ -271,18 +280,23 @@ bool IO_CSV::readmatrix(const std::string& filename, std::vector<double>& E, std
   return true;
 }
 
-bool IO_CSV::writematrix(const std::string& filename, const std::vector<double>& E, const std::vector< std::vector<double> >& M, WRITEMODE mode) const {
-  if (E.size() != M.size()) {
-    cerr << "IO_CSV::writematrix: E and M have different sizes" << endl;
+bool IO_CSV::writematrix(const std::string& filename, const std::vector<double>& ETOA, const std::vector<double>& ELIS, const std::vector< std::vector<double> >& M, WRITEMODE mode) const {
+  if (ETOA.size() != M.size()) {
+    cerr << "IO_CSV::writematrix: ETOA and M have different sizes" << endl;
     return false;
   }
 
   ofstream of(filename, mode == APPEND ? ios::app : ios::trunc);
   of << setprecision(8) << setiosflags(ios::scientific);
-  of << "#E,";
-  for (int i = 0; i < E.size() - 1; i++)
-    of << E[i] << ",";
-  of << E[E.size() - 1] << endl;
+  of << "#ELIS,";
+  for (int i = 0; i < ELIS.size() - 1; i++)
+    of << ELIS[i] << ",";
+  of << ELIS[ELIS.size() - 1] << endl;
+
+  of << "#ETOA,";
+  for (int i = 0; i < ELIS.size() - 1; i++)
+    of << ETOA[i] << ",";
+  of << ETOA[ETOA.size() - 1] << endl;
 
   of << "#Matrix" << endl;
   for (int irow = 0; irow < M.size(); irow++) {
@@ -324,6 +338,8 @@ struct SpecBson {
   std::map<std::string, double> params;
   vector<double> E;
   vector<double> F;
+  vector<long> seed;
+  vector<double> etoa, elis;
 };
 bool IO_BSON::readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry) {
   vector<char> buf = readbson(filename, ientry);
@@ -333,6 +349,8 @@ bool IO_BSON::readspec(const std::string& filename, std::vector<double>& E, std:
   const auto res = rfl::bson::read<SpecBson>(buf).value();
   E = res.E;
   F = res.F;
+  etoa = res.etoa;
+  elis = res.elis;
   params = res.params;
 
   return true;
@@ -344,7 +362,7 @@ bool IO_BSON::writespec(const std::string& filename, const std::vector<double>& 
     return false;
   }
 
-  const auto spec = SpecBson{.params= params, .E = E, .F = F};
+  const auto spec = SpecBson{.params= params, .E = E, .F = F, .seed = seed, .etoa = etoa, .elis = elis};
   vector<char> bspec = rfl::bson::write(spec);
 
   FILE *of = fopen(filename.c_str(), mode == APPEND ? "a" : "w");
@@ -357,28 +375,31 @@ bool IO_BSON::writespec(const std::string& filename, const std::vector<double>& 
 struct MatrixBson {
   map<string, double> params;
   std::vector<long> seed;
-  std::vector<double> E, ETOA, ELIS;
+  std::vector<double> ETOA, ELIS, etoa, elis;
   std::vector<std::vector<double> > M;
 };
-bool IO_BSON::readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry) {
+bool IO_BSON::readmatrix(const std::string& filename, std::vector<double>& ETOA, std::vector<double>& ELIS, std::vector< std::vector<double> >& M, int ientry) {
   vector<char> buf = readbson(filename, ientry);
   if (buf.empty()) return false;
 
   const auto res = rfl::bson::read<MatrixBson>(buf).value();
-  E = res.E;
+  ELIS = res.ELIS;
+  ETOA = res.ETOA;
+  etoa = res.etoa;
+  elis = res.elis;
   M = res.M;
   params = res.params;
 
   return true;
 }
 
-bool IO_BSON::writematrix(const std::string& filename, const std::vector<double>& E, const std::vector< std::vector<double> >& M, WRITEMODE mode) const {
-  if (E.size() != M.size()) {
-    cerr << "IO_BSON::writematrix: E and M have different sizes" << endl;
+bool IO_BSON::writematrix(const std::string& filename, const std::vector<double>& ETOA, const std::vector<double>& ELIS, const std::vector< std::vector<double> >& M, WRITEMODE mode) const {
+  if (ETOA.size() != M.size()) {
+    cerr << "IO_BSON::writematrix: ETOA and M have different sizes" << endl;
     return false;
   }
 
-  const auto matrix = MatrixBson{.params=params, .seed = seed, .E = E, .ETOA = ETOA, .ELIS = ELIS, .M = M};
+  const auto matrix = MatrixBson{.params=params, .seed = seed, .ETOA = ETOA, .ELIS = ELIS, .etoa = etoa, .elis = elis, .M = M};
   vector<char> bmatrix = rfl::bson::write(matrix);
 
   FILE *of = fopen(filename.c_str(), mode == APPEND ? "a" : "w");

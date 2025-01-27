@@ -13,13 +13,13 @@ public:
   enum WRITEMODE { RECREATE, APPEND };
   std::map<std::string, double> params;
   std::vector<long> seed;
-  std::vector<double> ETOA, ELIS;
+  std::vector<double> etoa, elis;
   void set_params(const std::map<std::string, docopt::value>& args);
   virtual bool readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry = 1);
   virtual bool writespec(const std::string& filename, const std::vector<double>& E, const std::vector<double>& F, WRITEMODE mode = RECREATE) const;
 
-  virtual bool readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry = 1);
-  virtual bool writematrix(const std::string& filename, const std::vector<double>& E, const std::vector< std::vector<double> >& M, WRITEMODE mode = RECREATE) const;
+  virtual bool readmatrix(const std::string& filename, std::vector<double>& ETOA, std::vector<double>& ELIS, std::vector< std::vector<double> >& M, int ientry = 1);
+  virtual bool writematrix(const std::string& filename, const std::vector<double>& ETOA, const std::vector<double>& ELIS, const std::vector< std::vector<double> >& M, WRITEMODE mode = RECREATE) const;
 };
 
 class IO_TXT : public IO {
@@ -30,8 +30,8 @@ public:
   bool readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry = 1);
   bool writespec(const std::string& filename, const std::vector<double>& E, const std::vector<double>& F, WRITEMODE mode = RECREATE) const;
 
-  bool readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry = 1);
-  bool writematrix(const std::string& filename, const std::vector<double>& E, const std::vector< std::vector<double> >& M, WRITEMODE mode = RECREATE) const;
+  bool readmatrix(const std::string& filename, std::vector<double>& ETOA, std::vector<double>& ELIS, std::vector< std::vector<double> >& M, int ientry = 1);
+  bool writematrix(const std::string& filename, const std::vector<double>& ETOA, const std::vector<double>& ELIS, const std::vector< std::vector<double> >& M, WRITEMODE mode = RECREATE) const;
 };
 
 class IO_CSV : public IO {
@@ -42,8 +42,8 @@ public:
   bool readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry = 1);
   bool writespec(const std::string& filename, const std::vector<double>& E, const std::vector<double>& F, WRITEMODE mode = RECREATE) const;
 
-  bool readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry = 1);
-  bool writematrix(const std::string& filename, const std::vector<double>& E, const std::vector< std::vector<double> >& M, WRITEMODE mode = RECREATE) const;
+  bool readmatrix(const std::string& filename, std::vector<double>& ETOA, std::vector<double>& ELIS, std::vector< std::vector<double> >& M, int ientry = 1);
+  bool writematrix(const std::string& filename, const std::vector<double>& ETOA, const std::vector<double>& ELIS, const std::vector< std::vector<double> >& M, WRITEMODE mode = RECREATE) const;
 };
 
 class IO_BSON : public IO {
@@ -54,8 +54,8 @@ public:
   bool readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry = 1);
   bool writespec(const std::string& filename, const std::vector<double>& E, const std::vector<double>& F, WRITEMODE mode = RECREATE) const;
 
-  bool readmatrix(const std::string& filename, std::vector<double>& E, std::vector< std::vector<double> >& M, int ientry = 1);
-  bool writematrix(const std::string& filename, const std::vector<double>& E, const std::vector< std::vector<double> >& M, WRITEMODE mode = RECREATE) const;
+  bool readmatrix(const std::string& filename, std::vector<double>& ETOA, std::vector<double>& ELIS, std::vector< std::vector<double> >& M, int ientry = 1);
+  bool writematrix(const std::string& filename, const std::vector<double>& ETOA, const std::vector<double>& ELIS, const std::vector< std::vector<double> >& M, WRITEMODE mode = RECREATE) const;
 
 };
 

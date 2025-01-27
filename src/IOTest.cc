@@ -15,13 +15,13 @@ void write_test(IO& io, const string& specname, const string& matname) {
 
   io.params["number"] = 1;
   io.params["B0"] = 15;
-  io.writematrix(matname, E, M);
+  io.writematrix(matname, E, E, M);
   io.writespec(specname, E, F, IO::RECREATE);
 
   io.params["number"] = 1000;
   io.params["B0"] = 1.5;
 
-  io.writematrix(matname, E, M2, IO::APPEND);
+  io.writematrix(matname, E, E, M2, IO::APPEND);
   io.writespec(specname, E, F2, IO::APPEND);
 }
 
@@ -38,7 +38,7 @@ void read_test(IO& io, const string& specname, const string& matname) {
       cout << Eread[i] << " " << Fread[i] << endl;
 
   
-    io.readmatrix(matname, Eread, Mread, ientry);
+    io.readmatrix(matname, Eread, Eread, Mread, ientry);
     for (const auto& p : io.params)
       cout << p.first << ": " << p.second << endl;
     cout << "# M" << endl;

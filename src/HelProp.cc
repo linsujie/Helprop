@@ -6,7 +6,9 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <iomanip>
 #include <cassert>
+#include "loginterp.h"
 #include "docopt.h"
 #include "particle.h"
 #include "IO.h"
@@ -40,6 +42,13 @@ vector<double> get_ekin(const string& ekin_opt) {
         ekin.push_back(ekmin * pow(ekmax / ekmin, i / (n - 1)));
 
     return ekin;
+}
+
+vector<double> get_ekin(const map<string, docopt::value>& args, const string& key) {
+  if (bool(args.at(key)))
+    return get_ekin(args.at(key).asString());
+  
+  return vector<double>();
 }
 
 vector<particle> simulating(const particle& template_particle, int number, int th_num, const string& logname) {
@@ -82,8 +91,8 @@ vector<particle> simulating(const particle& template_particle, int number, int t
   return Particle;
 }
 
+const double m_proton = 0.938272;
 vector<double> count_GreenFunction(const vector<particle>& Particle, const vector<double>& ekin, int A = 1) {
-  const double m_proton = 0.938272 * Unit::GeV;
   vector<double> momentum;
   for (const auto& e : ekin)
     momentum.push_back(sqrt(e * (e + 2. * A * m_proton)));
@@ -134,7 +143,8 @@ This Routine is used to simulate the modulation of particle within heliosphere.
       -a ANGLE, --angle ANGLE           Tilt angle of HCS in deg [default: 15].
       -D D, --D D                       Diffusion factor in unit 1e22 cm^2/s [default: 5].
       --indexA INDEXA                   Diffusion index a [default: 2].
-      --ekins EKINS                     The ekin assigned in format min,max,nbin in GeV, this option would only act when no inspec is assigned [default: 0.1,10,40].
+      --elis ELIS                       The ekin of LIS spectrum assigned in format min,max,nbin in GeV, it would follow the input spec if not given.
+      --etoa ETOA                       The ekin of TOA spectrum assigned in format min,max,nbin in GeV, it would follow the input spec or elis if not given.
       --sample                          If given, to store the samples to the outmatrix or not, only available for BSON format.
       --iotype IOTYPE                   The input/output type (TXT, CSV, or BSON) [default: TXT].
       --append                          Append the output to existing file [default: false].
@@ -153,57 +163,75 @@ int main(int argc, char* argv[]) {
 
   io->set_params(args);
 
-  vector<double> ekin;   // set spectrum energy bin
+  // set spectrum energy bin
+  vector<double> EIN,
+   ELIS = get_ekin(args, "--elis"),
+   ETOA = get_ekin(args, "--etoa");
   vector<double> flux;   // boundary differential flux
 
   if (bool(args.at("<inspec>")))
-    io->readspec(args.at("<inspec>").asString(), ekin, flux);
+    io->readspec(args.at("<inspec>").asString(), EIN, flux);
 
-  if (ekin.empty())
-    ekin = get_ekin(args.at("--ekins").asString());
+  if (ELIS.empty()) ELIS = EIN;
+  assert(!ELIS.empty() && "The ekin axis of LIS spectrum should be given.");
 
-  cout << "ekin.size() = " << ekin.size() << endl;
-  vector<vector<double>> weight;  // possibility matrix
+  if (ETOA.empty()) ETOA = EIN.empty() ? ELIS : EIN;
+  assert(!ETOA.empty() && "The ekin axis of TOA spectrum should be given.");
+
+  cout << "ETOA.size() = " << ETOA.size() << endl;
+  vector<vector<double>> weight;  // Green function matrix
 
   int number = args.at("--number").asLong();
   int th_num = args.at("--nthread").asLong();
   particle one(args);
   bool fix_seed = bool(args.at("--seed"));
   long seed = fix_seed ? args.at("--seed").asLong() : 0;
+  int A = 1;
 
-  for (int i = 0; i < ekin.size(); i++) {
-    one.Ek = ekin[i] * Unit::GeV;
+  for (int i = 0; i < ETOA.size(); i++) {
+    one.Ek = ETOA[i] * Unit::GeV;
     one.fix_seed = fix_seed;
     one.seed = seed + i * number;
 
     cout << "simulating Ek = " << one.Ek / Unit::GeV << endl;
     auto Particle = simulating(one, number, th_num, bool(args.at("--logname")) ? args.at("--logname").asString() : "");
 
-    auto bin = count_GreenFunction(Particle, ekin);
+    auto bin = count_GreenFunction(Particle, ELIS, A);
     weight.push_back(bin);
     if (args.at("--sample").asBool())
       for (const auto& p : Particle) {
         io->seed.push_back(p.seed);
-        io->ETOA.push_back(one.Ek / Unit::GeV);
-        io->ELIS.push_back(p.Ek / Unit::GeV);
+        io->etoa.push_back(one.Ek / Unit::GeV);
+        io->elis.push_back(p.Ek / Unit::GeV);
       }
   }
-
+  
   if (bool(args.at("<outmatrix>"))) {
-    io->writematrix(args.at("<outmatrix>").asString(), ekin, weight);
+    io->writematrix(args.at("<outmatrix>").asString(), ETOA, ELIS, weight);
     return 0;
   }
 
+  LogInterp f_lis(EIN, flux);
+  vector<double> FLIS;
+  for (const auto& e : ELIS)
+    FLIS.push_back(f_lis(e));
+
+  vector<double> mLIS, mTOA;
+  for (const auto& e : ETOA)
+    mTOA.push_back(sqrt(e * (e + 2. * A * m_proton)));
+  for (const auto& e : ELIS)
+    mLIS.push_back(sqrt(e * (e + 2. * A * m_proton)));
+
   vector<double> Ospec;
-  for (int i = 0; i < weight.size(); i++) {
+  for (int itoa = 0; itoa < weight.size(); itoa++) {
     double value = 0;
-    for (int j = 0; j < flux.size(); j++) {
-      value += flux[j] * weight[i][j] / ekin[j] / ekin[j] * ekin[i] * ekin[i];
+    for (int ilis = 0; ilis < ELIS.size(); ilis++) {
+      value += weight[itoa][ilis] * FLIS[ilis] / mLIS[ilis] / mLIS[ilis] * mTOA[itoa] * mTOA[itoa];
     }
     Ospec.push_back(value);
   }
 
-  io->writespec(args.at("<outspec>").asString(), ekin, Ospec);
+  io->writespec(args.at("<outspec>").asString(), ETOA, Ospec);
 
   return 0;
 }

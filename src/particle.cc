@@ -55,30 +55,18 @@ particle::particle(const map<string, docopt::value>& args)
 
 particle::~particle() {}
 
-const double particle::Wind() {
+double particle::Wind(double r, double theta, double phi, double angle) const{
   double value;
-  if (0. <= theta && theta <= pi / 2.) {
-    value = (1.475 - 0.4 * tanh(6.8 * ((theta - pi / 2) + (15 * deg + angle)))) *
-                        (3.5 / 5. - 1.5 / 5. * tanh((r - 120 * AU) / 1.2 / AU));
-  } else if (pi / 2. < theta && theta <= pi) {
-    value = (1.475 + 0.4 * tanh(6.8 * ((theta - pi / 2) - (15 * deg + angle)))) *
-                        (3.5 / 5. - 1.5 / 5. * tanh((r - 120 * AU) / 1.2 / AU));
-  }
+    if (0. <= theta && theta <= pi / 2.) {
+      value = (1.475 - 0.4 * tanh(6.8 * ((theta - pi / 2) + (15 * deg + angle)))) * (3.5 / 5. - 1.5 / 5. * tanh((r - 120 * AU) / 1.2 / AU));
+    } else if (pi / 2. < theta && theta <= pi) {
+      value = (1.475 + 0.4 * tanh(6.8 * ((theta - pi / 2) - (15 * deg + angle)))) * (3.5 / 5. - 1.5 / 5. * tanh((r - 120 * AU) / 1.2 / AU));
+    }
+    return  value * 400 * (km / sec);
+}
 
-  //     for(int i=0;i<9;i++){
-  //         double a = (5+10*i)*pi/180;
-  //         cout << a << "   " << 1.475 - 0.4 * tanh(6.8*((a - pi/2.) +
-  //         (15.*deg + angle))) * (3.5/5. - 1.5/5.*tanh((r-95*AU)/1.2/AU)) <<
-  //         endl;
-  //     }
-  //     for(int i=9;i<18;i++){
-  //         double a = (5+10*i)*pi/180;
-  //         cout << a << "   " << 1.475 + 0.4 * tanh(6.8*((a - pi/2.) -
-  //         (15.*deg + angle))) * (3.5/5. - 1.5/5.*tanh((r-95*AU)/1.2/AU)) <<
-  //         endl;
-  //     }
-  // getchar();
-  return value * 400 * (km / sec);
+double particle::Wind() const {
+  return Wind(r, theta, phi, angle);
 }
 
 void particle::r_bound(double r, double phi, double phi0, double& rlow, double& rup) const {
@@ -788,17 +776,6 @@ double particle::get_HCS_distance() const {
   return sign * fmin(fmin(dlow, dup), dmid);
 }
 
-
-double wind1(double r, double theta, double phi, double angle){
-  double value;
-    if (0. <= theta && theta <= pi / 2.) {
-      value = (1.475 - 0.4 * tanh(6.8 * ((theta - pi / 2) + (15 * deg + angle)))) * (3.5 / 5. - 1.5 / 5. * tanh((r - 120 * AU) / 1.2 / AU));
-    } else if (pi / 2. < theta && theta <= pi) {
-      value = (1.475 + 0.4 * tanh(6.8 * ((theta - pi / 2) - (15 * deg + angle)))) * (3.5 / 5. - 1.5 / 5. * tanh((r - 120 * AU) / 1.2 / AU));
-    }
-    return  value * 400 * (km / sec);
-}
-
 void particle::step(const string& logname) {
   if (!fix_seed) {
     random_device rd;
@@ -859,9 +836,9 @@ void particle::step(const string& logname) {
 
     double gamma = tan(psi);
     double drift = 2 * M_p * V_p * r / (3 * Z * e * c_speed * Bn );
-    Vdr_gc =  drift / pow(1 + gamma * gamma, 2.) * (-1. * gamma ) / fabs(tan(theta));
-    Vdt_gc = A * polarity * drift / pow(1 + gamma * gamma, 2.) *  (2. + gamma * gamma) * gamma * heaviside;
-    Vdp_gc = A * polarity * drift / pow(1 + gamma * gamma, 2.) * gamma * gamma / fabs(tan(theta)) * heaviside;//;
+    double Vdr_gc =  drift / pow(1 + gamma * gamma, 2.) * (-1. * gamma ) / fabs(tan(theta));
+    double Vdt_gc = A * polarity * drift / pow(1 + gamma * gamma, 2.) *  (2. + gamma * gamma) * gamma * heaviside;
+    double Vdp_gc = A * polarity * drift / pow(1 + gamma * gamma, 2.) * gamma * gamma / fabs(tan(theta)) * heaviside;//;
 
     double delta = (Theta_S(r+0.1, phi) - Theta_S(r, phi)) / 0.1;
     if(delta<0) delta = -1.;
@@ -881,9 +858,13 @@ void particle::step(const string& logname) {
     if(d_HCS<2.*Rg) Vns = (0.457 - 0.412 * d_HCS / Rg + 0.0915 * d_HCS * d_HCS / Rg / Rg) * V_p * A_drift;//
 
     double zonal = dis(gen);
-    Vdr_HCS = Vns * cos(beta) * sin(zonal) * A ;
-    Vdt_HCS = Vns * sin(beta) * A ;
-    Vdp_HCS = Vns * cos(beta) * cos(zonal) * A ;
+    double Vdr_HCS = Vns * cos(beta) * sin(zonal) * A ;
+    double Vdt_HCS = Vns * sin(beta) * A ;
+    double Vdp_HCS = Vns * cos(beta) * cos(zonal) * A ;
+
+    double Vdr = Vdr_gc + Vdr_HCS;
+    double Vdt = Vdt_gc + Vdt_HCS;
+    double Vdp = Vdp_gc + Vdp_HCS;
 
     double r0 = r;
     double theta0 = theta;
@@ -906,12 +887,12 @@ void particle::step(const string& logname) {
 // logfile << Dt << "  " << r/AU << "  " << theta << "  " << Vs*dt << "  " << Vdr_gc*dt << "  " << 1. / r / r * (r * r * k_rr - r10 * r10 * k_rr10) / (r - r10) << std::endl;
 //  
     if(r<4.*AU) dwr = fabs(dwr);
-    r += (-1. * Vs - Vdr_gc - Vdr_HCS + 1. / r / r * (r*(1+1e-3) * r*(1+1e-3) * k_rr1 - r * r * k_rr) / (r*1e-3)) * dt +
+    r += (- Vs - Vdr + 1. / r / r * (r*(1+1e-3) * r*(1+1e-3) * k_rr1 - r * r * k_rr) / (r*1e-3)) * dt +
          sqrt(2. * fabs(k_rr) * dt) * dwr;
 
     // r += - Vdr_HCS * dt;
 
-    theta += ( - Vdt_gc / r - Vdt_HCS / r
+    theta += ( - Vdt / r
               + 1. / r / r * (sin(theta * (1+1e-3)) * k_tt1 - sin(theta) * k_tt) / (theta * 1e-3)
              ) *dt 
               + 1. / r * sqrt(2. * fabs(k_tt) * dt) * dwt ;
@@ -919,11 +900,11 @@ void particle::step(const string& logname) {
     // theta += - Vdt_HCS / r * dt;
     // theta10 += - Vdt_HCS / r * dt;
 
-    phi += (-1. * Vdp_gc - Vdp_HCS ) / (r * sin(theta)) * dt +
+    phi += - Vdp / (r * sin(theta)) * dt +
            sqrt(2. * fabs(k_pp) * dt) * dwp / (r * sin(theta));
 
     double r1 = r;
-    double V1 = wind1(r1, theta0, phi0, angle);
+    double V1 = Wind(r1, theta0, phi0, angle);
 
     Ek += 1. / (3 * r0 * r0) * (r1 * r1 * V1 - r0 * r0 * Vs) / (r1 - r0) * Ek * dt;
     // Ek += 2. / 3. * Vs / r0 * Ek * dt;

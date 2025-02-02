@@ -92,13 +92,6 @@ class particle {
     double Z = 1.;                                              //charge number, proton by default
     double mass;                                                  //rest mass
 
-    double Vdr_gc;                                              //drift to radial direction
-    double Vdp_gc;                                              //drift to azimuthal direction
-    double Vdt_gc;                                              //drift to pole direction
-    double Vdr_HCS = 0;                                             //drift at the HCS for thress direction
-    double Vdp_HCS = 0;
-    double Vdt_HCS = 0;
-
     inline double phi0(double r, double phi) const {
       return phi + r * Omega / Vs_eq - Omega * (t - t0);
     }
@@ -133,7 +126,8 @@ class particle {
 
     void step(const std::string& logname = "");                                       //simulate trajectory of particle
 
-    const double Wind();                                        //solar wind velocity function
+    double Wind() const;                                        //solar wind velocity function
+    double Wind(double r, double theta, double phi, double angle) const;                                        //solar wind velocity function
     double Theta_S(double, double) const;                                     //theat_s function
     double Phi0_S(double) const;
     const double Heav();                                        //get heaviside function

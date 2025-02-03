@@ -1,6 +1,7 @@
 #include <cassert>
 #include <sstream>
 #include <iomanip>
+#include <functional>
 
 #include "Vec.hh"
 #include "particle.h"
@@ -796,6 +797,14 @@ void particle::step(const string& logname) {
   if (logfile.is_open())
      logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],drift,Vdr_gc[km/s]" << endl;
 
+  auto r2V_r = [&](double r) {
+    return r * r * Wind(r, theta, phi, angle);
+  };
+
+  auto dvdx = [&](double x, const function<double(double)>& v) {
+    return (v(x * (1 + 1e-3)) - v(x)) / (1e-3 * x);
+  };
+
   // theta = 1e-3;
   double Dt = 0;
   double M_p0 = sqrt(Ek * (Ek + 2. * mass));
@@ -833,6 +842,8 @@ void particle::step(const string& logname) {
     double k_rr1 = K_rr(r*(1+1e-3), theta*(1+1e-3), phi, psi1, B1, B0, M_p, M_p0, V_p);
     double k_tt1 = K_tt(r*(1+1e-3), theta*(1+1e-3), phi, psi1, B1, B0, M_p, M_p0, V_p);
     double k_pp1 = K_pp(r*(1+1e-3), theta*(1+1e-3), phi, psi1, B1, B0, M_p, M_p0, V_p);
+
+    double dr2V_dr = dvdx(r, r2V_r);
 
     double gamma = tan(psi);
     double drift = 2 * M_p * V_p * r / (3 * Z * e * c_speed * Bn );
@@ -887,7 +898,8 @@ void particle::step(const string& logname) {
 // logfile << Dt << "  " << r/AU << "  " << theta << "  " << Vs*dt << "  " << Vdr_gc*dt << "  " << 1. / r / r * (r * r * k_rr - r10 * r10 * k_rr10) / (r - r10) << std::endl;
 //  
     if(r<4.*AU) dwr = fabs(dwr);
-    r += (- Vs - Vdr + 1. / r / r * (r*(1+1e-3) * r*(1+1e-3) * k_rr1 - r * r * k_rr) / (r*1e-3)) * dt +
+    r += (- Vs - Vdr
+          + 1. / r / r * (r*(1+1e-3) * r*(1+1e-3) * k_rr1 - r * r * k_rr) / (r*1e-3)) * dt +
          sqrt(2. * fabs(k_rr) * dt) * dwr;
 
     // r += - Vdr_HCS * dt;
@@ -903,11 +915,15 @@ void particle::step(const string& logname) {
     phi += - Vdp / (r * sin(theta)) * dt +
            sqrt(2. * fabs(k_pp) * dt) * dwp / (r * sin(theta));
 
-    double r1 = r;
+    double r1 = r0 * (1 + 1e-3);
     double V1 = Wind(r1, theta0, phi0, angle);
+    double E = Ek + mass;
+    double p2 = E * E - mass * mass;
 
-    Ek += 1. / (3 * r0 * r0) * (r1 * r1 * V1 - r0 * r0 * Vs) / (r1 - r0) * Ek * dt;
-    // Ek += 2. / 3. * Vs / r0 * Ek * dt;
+    Ek += dr2V_dr / 3 / r0 / r0 * p2 / E * dt;
+
+    //Ek += p2 / E * 1. / (3 * r0 * r0) * (r1 * r1 * V1 - r0 * r0 * Vs) / (r1 - r0) * dt;
+    //Ek += 2. / 3. * Vs / r0 * p2 / E * dt;
     if (r < 0.) {
       r = 0.;
       break;

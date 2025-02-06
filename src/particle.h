@@ -5,50 +5,9 @@
 #include <cmath>
 #include <random>
 #include <fstream>
-#include "Vec.hh"
-#include "fcache.h"
+#include "HCS.h"
 #include "docopt.h"
-
-namespace Unit {
-  const double m = 1;
-  const double cm = 1e-2 * m;
-  const double km = 1e3 * m;
-  const double AU = 1.496*pow(10.,11.) * m;
-
-  const double sec = 1;
-  const double min = 60 * sec;
-  const double hr = 3600 * sec;
-  const double day = 86400 * sec;
-
-  const double c_speed = 2.99792e8 * m / sec;
-
-  const double kg = 1;
-  const double g = 1e-3 * kg;
-  const double ton = 1e3 * kg;
-
-  const double J = 1 * kg * m * m / sec / sec;
-
-  const double pi = acos(-1);
-  const double deg = pi / 180;
-
-  const double T = 1;
-  const double nT = 1e-9 * T;
-  const double Gauss = 1e-4 * T;
-
-  const double GeV = 1.602177e-10 * J;
-  const double MeV = 1e-3 * GeV;
-  const double TeV = 1e3 * GeV;
-
-  const double hbar = 1.05457e-34 * J * sec;
-
-  const double C = 1 * J * sec / T / m / m;
-  const double e = 1.602e-19 * C;
-  const double V = J / C;
-  const double epsilon_0 = 8.854e-12 * C / (V * m); //permittivity of free space in F/m
-};
-
-enum Polygon { Dodecahedron, Icosahedron, test };
-
+#include "Unit.h"
 class particle {
     public:
 
@@ -59,25 +18,20 @@ class particle {
     double boundary = 100 * Unit::AU;                                     //boundary condition in AU
     double dt = 500. * Unit::sec;                                             //time interval per step
     double Vs;                                                  //solar wind velocity
-    double Vs_eq;
-    double Omega = 2*Unit::pi/27.5/Unit::day;                        //angular velocity corresponding to 27.5 day
-    double t0 = 0.0;
-    double t = 0.0;
 
     double polarity;                                            //field direction
-    static double angle;                                               //tilt angle of HCS
     double B0;                                                  //magnetic strength in the Earth in T
 
     double k_xx;                                                //field along diffusion coefficient in local fram
     double k_yy;                                                //
     double k_zz;                                                //azimuth diffusion coefficient in local frame
-    double indexA;                                              //power index related to rigidity of particle
-    double D;                                                   //diffusion factor
     double k_rr;                                                //radial diffusion coefficient
     double k_tt;                                                //pole angle diffusion coefficient
     double k_pp;                                                //azimuthal diffusion coefficient
     double k_rr10 = 0.;
     double k_tt10 = 0.;
+    double D;                                                   //diffusion factor
+    double indexA;                                              //power index related to rigidity of particle
 
     double Br;                                                  //magnetic field components in three direction
     double Bp;                                                  //
@@ -92,65 +46,30 @@ class particle {
     double Z = 1.;                                              //charge number, proton by default
     double mass;                                                  //rest mass
 
-    inline double phi0(double r, double phi) const {
-      return phi + r * Omega / Vs_eq - Omega * (t - t0);
-    }
-    void r_bound(double r, double phi, double phi0, double& rlow, double& rup) const;
+    double r, theta, phi;                              // particle position
+    double r10 = 0;
+    double Ek;                                                  //kinetic energy
+    double M_p;                                                 // momentum of particle
+    double V_p;                                                 // velocity of praticle
 
-    bool spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter) const;
-    bool wave_iterate(const Vec& target_point, Vec& p_cs, double& diter) const;
-    bool point_iterate(const Vec& target_point, Vec& p_cs, Vec& dh, double& diter) const;
-
-    Vec norm_vec(const Vec& p_cs) const;
-
-    double Phi0_S_Jokipii_Thomas(double) const;
-    double Phi0_S_Kota_Jokipii(double) const;
-
-    double Theta_S_Jokipii_Thomas(double) const;
-    double Theta_S_Kota_Jokipii(double) const;
-
-    inline double Theta_S_Jokipii_Thomas(double r, double phi) const {
-      return Theta_S_Jokipii_Thomas(phi0(r, phi));
-    }
-    inline double Theta_S_Kota_Jokipii(double r, double phi) const {
-      return Theta_S_Kota_Jokipii(phi0(r, phi));
-    }
-
-    public:
-    enum HCSFORM { Jokipii_Thomas, Kota_Jokipii };
-    static HCSFORM hcsform;
+    HCS hcs;
 
     particle(const std::map<std::string, docopt::value>& args);
     particle();
     ~particle();
 
-    void step(const std::string& logname = "");                                       //simulate trajectory of particle
+    void step(const std::string& logname = "");                                   //simulate trajectory of particle
 
+    public:
     double Wind() const;                                        //solar wind velocity function
     double Wind(double r, double theta, double phi, double angle) const;                                        //solar wind velocity function
-    double Theta_S(double, double) const;                                     //theat_s function
-    double Phi0_S(double) const;
     const double Heav();                                        //get heaviside function
     const double B_r(const double& r, const double& theta, const double& phi, const double& heaviside);                  //radial magnetic field function
     const double B_p(const double& r, const double& theta, const double& phi, const double& heaviside);                  //azimuthal magnetic field function
-    double get_HCS_distance_old(double ftol_abs) const;
-    double get_HCS_distance() const;
-    double get_HCS_distance_polygon(double Rg2, Polygon polygon = Polygon::Dodecahedron) const;
 
     const double K_rr(const double& r, const double& theta, const double& phi, const double& psi, const double& B, const double& B0, const double& M_p, const double& M_p0, const double& V_p);
     const double K_tt(const double& r, const double& theta, const double& phi, const double& psi, const double& B, const double& B0, const double& M_p, const double& M_p0, const double& V_p);
     const double K_pp(const double& r, const double& theta, const double& phi, const double& psi, const double& B, const double& B0, const double& M_p, const double& M_p0, const double& V_p);
-
-    void HCS_rphi(const double &r, const double &phi, double& x, double& y, double& z) const;
-    //double HCS_xy_z(const double &x, const double &y) const;
-
-    double Ek;                                                  //kinetic energy
-    double M_p;                                                 // momentum of particle
-    double V_p;                                                 // velocity of praticle
-    double r = (1)*Unit::AU;                              // radial distance
-    double r10 = 0;
-    double theta = Unit::deg*(90)+pow(10.,-10.);
-    double phi = pow(10.,-10.);
 };
 
 

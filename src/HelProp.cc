@@ -163,6 +163,9 @@ int main(int argc, char* argv[]) {
 
   io->set_params(args);
 
+  HCS::angle = stod(args.at("--angle").asString()) * Unit::deg;
+  HCS::hcsform = HCS::Kota_Jokipii;
+
   // set spectrum energy bin
   vector<double> EIN,
    ELIS = get_ekin(args, "--elis"),

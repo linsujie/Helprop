@@ -148,10 +148,6 @@ void particle::step(const string& logname) {
       logfile << Dt/day/30. << "," << r/AU << "," << theta << "," << phi << "," << Ek/GeV << "," << drift << "," << Vdr_gc/(km/sec) << endl;
   };
 
-  // theta = 0.00;
-  // r = 5*AU;
-  theta = hcs.Theta_S(r, phi)*(1-1e-2/2.);
-  // double theta10 = theta;
   while (r<boundary) {//theta<pi/2
     Dt += dt;
     M_p = sqrt(Ek * (Ek + 2. * mass));

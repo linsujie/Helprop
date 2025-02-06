@@ -112,7 +112,6 @@ const double particle::K_pp(const double& r, const double& theta, const double& 
 }
 
 void particle::step(const string& logname) {
-  cout << "angle is: " << HCS::angle / deg << endl;
   if (!fix_seed) {
     random_device rd;
     seed = rd();
@@ -125,12 +124,6 @@ void particle::step(const string& logname) {
 
   double record_T = 0.;
 
-  ostringstream osname;
-  if (!logname.empty()) osname << "s" << seed << "_" << logname;
-  std::ofstream logfile(osname.str());
-  if (logfile.is_open())
-     logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],drift,Vdr_gc[km/s]" << endl;
-
   auto r2V_r = [&](double r_) {
     return r_ * r_ * Wind(r_, theta, phi, HCS::angle);
   };
@@ -142,6 +135,19 @@ void particle::step(const string& logname) {
   // theta = 1e-3;
   double Dt = 0;
   double M_p0 = sqrt(Ek * (Ek + 2. * mass));
+  double drift = 0, Vdr_gc = 0;
+
+  ostringstream osname;
+  if (!logname.empty()) osname << "s" << seed << "_" << logname;
+  std::ofstream logfile(osname.str());
+
+  if (logfile.is_open())
+     logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],drift,Vdr_gc[km/s]" << endl;
+  auto write_log = [&]() {
+    if (logfile.is_open())
+      logfile << Dt/day/30. << "," << r/AU << "," << theta << "," << phi << "," << Ek/GeV << "," << drift << "," << Vdr_gc/(km/sec) << endl;
+  };
+
   // theta = 0.00;
   // r = 5*AU;
   theta = hcs.Theta_S(r, phi)*(1-1e-2/2.);
@@ -180,8 +186,8 @@ void particle::step(const string& logname) {
     double dr2V_dr = dvdx(r, r2V_r);
 
     double gamma = tan(psi);
-    double drift = 2 * M_p * V_p * r / (3 * Z * e * c_speed * Bn );
-    double Vdr_gc =  drift / pow(1 + gamma * gamma, 2.) * (-1. * gamma ) / fabs(tan(theta));
+    drift = 2 * M_p * V_p * r / (3 * Z * e * c_speed * Bn );
+    Vdr_gc =  drift / pow(1 + gamma * gamma, 2.) * (-1. * gamma ) / fabs(tan(theta));
     double Vdt_gc = A * polarity * drift / pow(1 + gamma * gamma, 2.) *  (2. + gamma * gamma) * gamma * heaviside;
     double Vdp_gc = A * polarity * drift / pow(1 + gamma * gamma, 2.) * gamma * gamma / fabs(tan(theta)) * heaviside;//;
 
@@ -221,7 +227,6 @@ void particle::step(const string& logname) {
     if(3<fabs(dwr)) dwr = dist(gen);
     if(3<fabs(dwp)) dwp = dist(gen);
     if(3<fabs(dwt)) dwt = dist(gen);
-
     // r += 0.01 * AU;
     // r += -1. * Vs * dt;- Vdr_HCS +
 
@@ -231,9 +236,10 @@ void particle::step(const string& logname) {
 // 
 // logfile << Dt << "  " << r/AU << "  " << theta << "  " << Vs*dt << "  " << Vdr_gc*dt << "  " << 1. / r / r * (r * r * k_rr - r10 * r10 * k_rr10) / (r - r10) << std::endl;
 //  
-    if (logfile.is_open())
-       logfile << Dt/day/30 << "," << r/AU << "," << theta << "," << phi  << "," << Ek / GeV << "," << drift << "," << Vdr_gc << endl;
     if(r<4.*AU) dwr = fabs(dwr);
+
+    write_log();
+
     r += (- Vs - Vdr
           + 1. / r / r * (r*(1+1e-3) * r*(1+1e-3) * k_rr1 - r * r * k_rr) / (r*1e-3)) * dt +
          sqrt(2. * fabs(k_rr) * dt) * dwr;
@@ -300,8 +306,9 @@ void particle::step(const string& logname) {
     //   break;
     // }
   }
-  // if(90 < r/AU)  {
-  //   logfile << r/AU << "  " << theta << "  " << phi << "  " << Ek / GeV << std::endl;
-  // }
-  if (logfile.is_open()) logfile.close();
+
+  if (logfile.is_open()) { // Write the final state
+    write_log();
+    logfile.close();
+  }
 }

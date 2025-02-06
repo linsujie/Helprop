@@ -44,12 +44,12 @@ class particle {
     double rigidity;                                            //rigidity of particle related to kinetic and rest energy
     double A = 1.;                                              //nucleon number, proton by default
     double Z = 1.;                                              //charge number, proton by default
-    double mass;                                                  //rest mass
+    static const double mp;                           //rest mass of proton
 
     double r, theta, phi;                              // particle position
     double r10 = 0;
-    double Ek;                                                  //kinetic energy
-    double M_p;                                                 // momentum of particle
+    double Ek;                                                  //kinetic energy / nucleon
+    double M_p;                                                 // momentum / nucleon
     double V_p;                                                 // velocity of praticle
 
     HCS hcs;

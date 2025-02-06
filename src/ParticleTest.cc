@@ -20,7 +20,8 @@ This Routine is used to Check the simulation of one particle.
     Options:
       -h --help                         Show this help.
       -s SEED, --seed SEED              The global seed of this routine, it would be automatically given if not assigned.
-      -m MASS, --mass MASS              The particle mass in GeV [default: 0.93827].
+      -A A, --A A                       The nucleon number A of particle [default: 1].
+      -Z Z, --Z Z                       The charge number Z of particle [default: 1].
       -B B0, --B0 B0                    The magnetic strength around the Earth in nT [default: 5].
       -p POLARITY, --polarity POLARITY  The direction polarity of the magnetic field [default: -1].
       -a ANGLE, --angle ANGLE           Tilt angle of HCS in deg [default: 15].

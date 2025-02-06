@@ -13,15 +13,16 @@
 using namespace std;
 using namespace Unit;
 
+const double particle::mp = 0.93827 * GeV;
 particle::particle() :
-  mass(0.93827 * GeV),
+  A(1), Z(1),
   polarity(-1), B0(5 * nT), indexA(2), D(5 * 1e22 * cm * cm / sec),
   Bn(B0 * AU * AU / 1.35883),
   r(AU), theta(90*deg + 1e-10), phi(1e-10), hcs(Wind())
   {}
 
 particle::particle(const map<string, docopt::value>& args) :
-  mass(stod(args.at("--mass").asString()) * GeV),
+  A(args.at("--A").asLong()), Z(args.at("--Z").asLong()),
   polarity(args.at("--polarity").asLong()), B0(stod(args.at("--B0").asString()) * nT), indexA(stod(args.at("--indexA").asString())), D(stod(args.at("--D").asString()) * 1e22 * cm * cm / sec),
   Bn(B0 * AU * AU / 1.35883),
   r(AU), theta(90*deg + 1e-6), phi(1e-10), hcs(Wind())
@@ -134,28 +135,31 @@ void particle::step(const string& logname) {
 
   // theta = 1e-3;
   double Dt = 0;
-  double M_p0 = sqrt(Ek * (Ek + 2. * mass));
+  double M_p0 = sqrt(Ek * (Ek + 2. * mp));
   double drift = 0, Vdr_gc = 0;
+  double k_rr1, k_tt1, k_pp1;
+  double Rg, Vns;
 
   ostringstream osname;
   if (!logname.empty()) osname << "s" << seed << "_" << logname;
   std::ofstream logfile(osname.str());
 
   if (logfile.is_open())
-     logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],drift,Vdr_gc[km/s]" << endl;
+     logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],drift[km/s],Vdr_gc[km/s]" << endl;
   auto write_log = [&]() {
     if (logfile.is_open())
-      logfile << Dt/day/30. << "," << r/AU << "," << theta << "," << phi << "," << Ek/GeV << "," << drift << "," << Vdr_gc/(km/sec) << endl;
+      logfile << Dt/day/30. << "," << r/AU << "," << theta << "," << phi << "," << Ek/GeV << "," << drift/(km/sec) << "," << Vdr_gc/(km/sec)
+       << endl;
   };
 
   while (r<boundary) {//theta<pi/2
     Dt += dt;
-    M_p = sqrt(Ek * (Ek + 2. * mass));
+    M_p = sqrt(Ek * (Ek + 2. * mp));
     rigidity = A / (Z * e) * M_p;
-    V_p = M_p / (Ek + mass) * c_speed;
+    V_p = M_p / (Ek + mp) * c_speed;
     Vs = Wind();
 
-    // std::cout << "Mp:  " << r << "  " << M_p/GeV << "  " << Ek/GeV << "  " << mass/GeV << std::endl;
+    // std::cout << "Mp:  " << r << "  " << M_p/GeV << "  " << Ek/GeV << "  " << mp/GeV << std::endl;
     // getchar();
 
     double cs = hcs.Theta_S(r, phi);
@@ -175,17 +179,17 @@ void particle::step(const string& logname) {
     k_tt = K_tt(r, theta, phi, psi, B, B0, M_p, M_p0, V_p);
     k_pp = K_pp(r, theta, phi, psi, B, B0, M_p, M_p0, V_p);
         
-    double k_rr1 = K_rr(r*(1+1e-3), theta*(1+1e-3), phi, psi1, B1, B0, M_p, M_p0, V_p);
-    double k_tt1 = K_tt(r*(1+1e-3), theta*(1+1e-3), phi, psi1, B1, B0, M_p, M_p0, V_p);
-    double k_pp1 = K_pp(r*(1+1e-3), theta*(1+1e-3), phi, psi1, B1, B0, M_p, M_p0, V_p);
+    k_rr1 = K_rr(r*(1+1e-3), theta*(1+1e-3), phi, psi1, B1, B0, M_p, M_p0, V_p);
+    k_tt1 = K_tt(r*(1+1e-3), theta*(1+1e-3), phi, psi1, B1, B0, M_p, M_p0, V_p);
+    k_pp1 = K_pp(r*(1+1e-3), theta*(1+1e-3), phi, psi1, B1, B0, M_p, M_p0, V_p);
 
     double dr2V_dr = dvdx(r, r2V_r);
 
     double gamma = tan(psi);
-    drift = 2 * M_p * V_p * r / (3 * Z * e * c_speed * Bn );
-    Vdr_gc =  drift / pow(1 + gamma * gamma, 2.) * (-1. * gamma ) / fabs(tan(theta));
-    double Vdt_gc = A * polarity * drift / pow(1 + gamma * gamma, 2.) *  (2. + gamma * gamma) * gamma * heaviside;
-    double Vdp_gc = A * polarity * drift / pow(1 + gamma * gamma, 2.) * gamma * gamma / fabs(tan(theta)) * heaviside;//;
+    drift = 2 * A * M_p * V_p * r / (3 * Z * e * Bn ) * heaviside * polarity;
+    Vdr_gc = drift / pow(1 + gamma * gamma, 2.) * (-1. * gamma ) / fabs(tan(theta));
+    double Vdt_gc = drift / pow(1 + gamma * gamma, 2.) *  (2. + gamma * gamma) * gamma;
+    double Vdp_gc = drift / pow(1 + gamma * gamma, 2.) * gamma * gamma / fabs(tan(theta));//;
 
     double delta = (hcs.Theta_S(r+0.1, phi) - hcs.Theta_S(r, phi)) / 0.1;
     if(delta<0) delta = -1.;
@@ -198,16 +202,16 @@ void particle::step(const string& logname) {
     //r = 66.7606607635679 * AU;
     //theta = 2.12431446451745;
     //phi = 2.4543874540613;
-    double Rg = M_p / (B * Z * e * c_speed);
+    Rg = A * M_p / (B * Z * e * c_speed);
     double d_HCS = fabs(hcs.get_distance(r, theta, phi));
     //exit(0);
-    double Vns = 0.;
+    Vns = 0.;
     if(d_HCS<2.*Rg) Vns = (0.457 - 0.412 * d_HCS / Rg + 0.0915 * d_HCS * d_HCS / Rg / Rg) * V_p * A_drift;//
 
     double zonal = dis(gen);
-    double Vdr_HCS = Vns * cos(beta) * sin(zonal) * A ;
-    double Vdt_HCS = Vns * sin(beta) * A ;
-    double Vdp_HCS = Vns * cos(beta) * cos(zonal) * A ;
+    double Vdr_HCS = Vns * cos(beta) * sin(zonal);
+    double Vdt_HCS = Vns * sin(beta);
+    double Vdp_HCS = Vns * cos(beta) * cos(zonal);
 
     double Vdr = Vdr_gc + Vdr_HCS;
     double Vdt = Vdt_gc + Vdt_HCS;
@@ -255,8 +259,8 @@ void particle::step(const string& logname) {
 
     double r1 = r0 * (1 + 1e-3);
     double V1 = Wind(r1, theta0, phi0, HCS::angle);
-    double E = Ek + mass;
-    double p2 = E * E - mass * mass;
+    double E = Ek + mp;
+    double p2 = E * E - mp * mp;
 
     Ek += dr2V_dr / 3 / r0 / r0 * p2 / E * dt;
 

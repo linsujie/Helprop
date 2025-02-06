@@ -137,14 +137,15 @@ This Routine is used to simulate the modulation of particle within heliosphere.
       -s SEED, --seed SEED              The global seed of this routine, it would be automatically given if not assigned.
       -n NTH, --nthread NTH             The number of threads used in this routine [default: 1].
       --number NUMBER                   The simulation particle number in each bin[default: 1000].
-      -m MASS, --mass MASS              The particle mass in GeV [default: 0.93827].
+      -A A, --A A                       The nucleon number A of particle [default: 1].
+      -Z Z, --Z Z                       The charge number Z of particle [default: 1].
       -B B0, --B0 B0                    The magnetic strength around the Earth in nT [default: 5].
       -p POLARITY, --polarity POLARITY  The direction polarity of the magnetic field [default: -1].
       -a ANGLE, --angle ANGLE           Tilt angle of HCS in deg [default: 15].
       -D D, --D D                       Diffusion factor in unit 1e22 cm^2/s [default: 5].
       --indexA INDEXA                   Diffusion index a [default: 2].
-      --elis ELIS                       The ekin of LIS spectrum assigned in format min,max,nbin in GeV, it would follow the input spec if not given.
-      --etoa ETOA                       The ekin of TOA spectrum assigned in format min,max,nbin in GeV, it would follow the input spec or elis if not given.
+      --elis ELIS                       The ekin/nucleon of LIS spectrum assigned in format min,max,nbin in GeV, it would follow the input spec if not given.
+      --etoa ETOA                       The ekin/nucleon of TOA spectrum assigned in format min,max,nbin in GeV, it would follow the input spec or elis if not given.
       --sample                          If given, to store the samples to the outmatrix or not, only available for BSON format.
       --iotype IOTYPE                   The input/output type (TXT, CSV, or BSON) [default: TXT].
       --append                          Append the output to existing file [default: false].
@@ -152,6 +153,13 @@ This Routine is used to simulate the modulation of particle within heliosphere.
 )";
 int main(int argc, char* argv[]) {
   std::map<std::string, docopt::value> args = docopt::docopt(USAGE, {argv + 1, argv + argc}, true);
+
+  cout << "==================== HelProp ====================" << endl;
+
+  for (auto &arg : args) {
+    cout << arg.first << ": " << arg.second << endl;
+  }
+  exit(0);
 
   IO *io = NULL;
   if (args.at("--iotype").asString() == "TXT")

@@ -7,7 +7,7 @@ namespace Unit {
   const double km = 1e3 * m;
   const double AU = 1.496*pow(10.,11.) * m;
 
-  const double sec = 1;
+  const double sec = 2.99792e8;
   const double min = 60 * sec;
   const double hr = 3600 * sec;
   const double day = 86400 * sec;

@@ -136,7 +136,9 @@ void particle::step(const string& logname) {
   // theta = 1e-3;
   double Dt = 0;
   double M_p0 = sqrt(Ek * (Ek + 2. * mp));
-  double drift = 0, Vdr_gc = 0;
+  double drift = 0;
+  double Vdr_gc = 0, Vdt_gc = 0, Vdp_gc = 0;
+  double Vdr_HCS = 0, Vdt_HCS = 0, Vdp_HCS = 0;
   double k_rr1, k_tt1, k_pp1;
   double Rg, Vns;
 
@@ -145,11 +147,13 @@ void particle::step(const string& logname) {
   std::ofstream logfile(osname.str());
 
   if (logfile.is_open())
-     logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],drift[km/s],Vdr_gc[km/s]" << endl;
+     logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],drift[km/s],Vdr_gc[km/s],Vdr_HCS[km/s]" << endl;
   auto write_log = [&]() {
     if (logfile.is_open())
-      logfile << Dt/day/30. << "," << r/AU << "," << theta << "," << phi << "," << Ek/GeV << "," << drift/(km/sec) << "," << Vdr_gc/(km/sec)
-       << endl;
+      logfile << Dt/day/30. << "," << r/AU << "," << theta << "," << phi << "," << Ek/GeV
+        << "," << drift/(km/sec)
+        << "," << Vdr_gc/(km/sec) << "," << Vdr_HCS/(km/sec)
+        << endl;
   };
 
   while (r<boundary) {//theta<pi/2
@@ -188,8 +192,8 @@ void particle::step(const string& logname) {
     double gamma = tan(psi);
     drift = 2 * A * M_p * V_p * r / (3 * Z * e * Bn ) * heaviside * polarity;
     Vdr_gc = drift / pow(1 + gamma * gamma, 2.) * (-1. * gamma ) / fabs(tan(theta));
-    double Vdt_gc = drift / pow(1 + gamma * gamma, 2.) *  (2. + gamma * gamma) * gamma;
-    double Vdp_gc = drift / pow(1 + gamma * gamma, 2.) * gamma * gamma / fabs(tan(theta));//;
+    Vdt_gc = drift / pow(1 + gamma * gamma, 2.) *  (2. + gamma * gamma) * gamma;
+    Vdp_gc = drift / pow(1 + gamma * gamma, 2.) * gamma * gamma / fabs(tan(theta));//;
 
     double delta = (hcs.Theta_S(r+0.1, phi) - hcs.Theta_S(r, phi)) / 0.1;
     if(delta<0) delta = -1.;
@@ -198,20 +202,15 @@ void particle::step(const string& logname) {
     if(Z*polarity<0) beta = pi + beta;
     else if(0<Z*polarity) beta = beta;
 
-    //if (fabs(r - 66.76 * AU) / r < 0.01) logfile << setprecision(15);
-    //r = 66.7606607635679 * AU;
-    //theta = 2.12431446451745;
-    //phi = 2.4543874540613;
     Rg = A * M_p / (B * Z * e * c_speed);
     double d_HCS = fabs(hcs.get_distance(r, theta, phi));
-    //exit(0);
     Vns = 0.;
     if(d_HCS<2.*Rg) Vns = (0.457 - 0.412 * d_HCS / Rg + 0.0915 * d_HCS * d_HCS / Rg / Rg) * V_p * A_drift;//
 
     double zonal = dis(gen);
-    double Vdr_HCS = Vns * cos(beta) * sin(zonal);
-    double Vdt_HCS = Vns * sin(beta);
-    double Vdp_HCS = Vns * cos(beta) * cos(zonal);
+    Vdr_HCS = Vns * cos(beta) * sin(zonal);
+    Vdt_HCS = Vns * sin(beta);
+    Vdp_HCS = Vns * cos(beta) * cos(zonal);
 
     double Vdr = Vdr_gc + Vdr_HCS;
     double Vdt = Vdt_gc + Vdt_HCS;

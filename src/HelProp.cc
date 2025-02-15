@@ -157,11 +157,6 @@ int main(int argc, char* argv[]) {
 
   cout << "==================== HelProp ====================" << endl;
 
-  for (auto &arg : args) {
-    cout << arg.first << ": " << arg.second << endl;
-  }
-  exit(0);
-
   IO *io = NULL;
   if (args.at("--iotype").asString() == "TXT")
     io = new IO_TXT();

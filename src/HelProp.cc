@@ -212,7 +212,7 @@ int main(int argc, char* argv[]) {
         io->elis.push_back(p.Ek / Unit::GeV);
       }
   }
-  
+
   if (bool(args.at("<outmatrix>"))) {
     io->writematrix(args.at("<outmatrix>").asString(), ETOA, ELIS, weight);
     return 0;

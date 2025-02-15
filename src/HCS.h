@@ -14,6 +14,7 @@ class HCS {
     static double angle;                        //tilt angle of HCS
     double t0 = 0.0;
     double t = 0.0;
+    double Vs_eq;
 
     HCS(double Vs_eq_);
     ~HCS();
@@ -21,6 +22,8 @@ class HCS {
     double get_distance_old(double r, double theta, double phi, double ftol_abs) const;
     double get_distance(double r, double theta, double phi) const;
     double get_distance_polygon(double r, double theta, double phi, double Rg2, Polygon polygon = Polygon::Dodecahedron) const;
+
+    double get_raw_distance(double r, double theta) const;
 
     double Theta_S(double, double) const;                                     //theat_s function
     static double Phi0_S(double);
@@ -35,7 +38,6 @@ class HCS {
     //double HCS_xy_z(const double &x, const double &y) const;
 
 private:
-    double Vs_eq;
 
     void r_bound(double r, double phi, double phi0, double& rlow, double& rup) const;
 

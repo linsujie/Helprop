@@ -627,3 +627,10 @@ double HCS::get_distance(double r, double theta, double phi) const {
   double sign = Theta_S(r, phi) < theta ? -1 : 1;
   return sign * fmin(fmin(dlow, dup), dmid);
 }
+
+double HCS::get_raw_distance(double r, double theta) const {
+  if (fabs(pi / 2 - theta) < angle) return 0;
+
+  double dangle = theta < pi / 2 ? pi / 2 - angle - theta : theta - pi / 2 - angle;
+  return r * sin(dangle);
+}

@@ -22,22 +22,12 @@ class particle {
     double polarity;                                            //field direction
     double B0;                                                  //magnetic strength in the Earth in T
 
-    double k_xx;                                                //field along diffusion coefficient in local fram
-    double k_yy;                                                //
-    double k_zz;                                                //azimuth diffusion coefficient in local frame
-    double k_rr;                                                //radial diffusion coefficient
-    double k_tt;                                                //pole angle diffusion coefficient
-    double k_pp;                                                //azimuthal diffusion coefficient
-    double k_rr10 = 0.;
-    double k_tt10 = 0.;
-    double D;                                                   //diffusion factor
+    double D0;                                                   //diffusion factor
+    double rigidity0;                                                  // reference rigidity of D0
     double indexA;                                              //power index related to rigidity of particle
 
-    double Br;                                                  //magnetic field components in three direction
-    double Bp;                                                  //
     double Bn;
     double Bt = 0.0;                                            //
-    double psi;                                                 //pitch angle between field and radial direction
     double theta_s;                                             //tile angle of HCS at particle point
     double heaviside;                                           //field direction in particle point
 
@@ -63,14 +53,14 @@ class particle {
     public:
     double Wind() const;                                        //solar wind velocity function
     double Wind(double r, double theta, double phi, double angle) const;                                        //solar wind velocity function
-    const double Heav();                                        //get heaviside function
-    const double B_r(const double& r, const double& theta, const double& phi, const double& heaviside);                  //radial magnetic field function
-    const double B_p(const double& r, const double& theta, const double& phi, const double& heaviside);                  //azimuthal magnetic field function
+    double Heav();                                        //get heaviside function
+    double B_r(double r, double theta, double heaviside) const;                  //radial magnetic field function
+    double B_p(double r, double theta, double heaviside) const;                  //azimuthal magnetic field function
 
-    const double K_rr(const double& r, const double& theta, const double& phi, const double& psi, const double& B, const double& B0, const double& M_p, const double& M_p0, const double& V_p);
-    const double K_tt(const double& r, const double& theta, const double& phi, const double& psi, const double& B, const double& B0, const double& M_p, const double& M_p0, const double& V_p);
-    const double K_pp(const double& r, const double& theta, const double& phi, const double& psi, const double& B, const double& B0, const double& M_p, const double& M_p0, const double& V_p);
+    double Kpara0() const;
+    void K(double r, double theta, double heaviside, double kpara, double& krr, double& ktt, double& kpp, double& krp) const;
+    void K(double r, double theta, double heaviside, double kpara, double& B, double& krr, double& ktt, double& kpp, double& krp) const;
+    void coord_trans(double krr, double ktt, double kpp, double krp, double& dwr, double& dwt, double& dwp) const;
 };
-
 
 #endif

@@ -145,8 +145,8 @@ This Routine is used to simulate the modulation of particle within heliosphere.
       -D D0, --D0 D0                    Reference diffusion coefficient in unit 1e22 cm^2/s [default: 5].
       -R R0, --R0 R0                    Reference rigidity for the diffusion coefficient in unit GV [default: 1].
       --indexA INDEXA                   Diffusion index a [default: 2].
-      --elis ELIS                       The ekin/nucleon of LIS spectrum assigned in format min,max,nbin in GeV, it would follow the input spec if not given.
-      --etoa ETOA                       The ekin/nucleon of TOA spectrum assigned in format min,max,nbin in GeV, it would follow the input spec or elis if not given.
+      --etoa ETOA                       The ekin/nucleon of TOA spectrum assigned in format min,max,nbin in GeV, it would follow the input spec if not given.
+      --elis ELIS                       The ekin/nucleon of LIS spectrum assigned in format min,max,nbin in GeV, it would follow the input spec or etoa if not given.
       --sample                          If given, to store the samples to the outmatrix or not, only available for BSON format.
       --iotype IOTYPE                   The input/output type (TXT, CSV, or BSON) [default: TXT].
       --append                          Append the output to existing file [default: false].
@@ -179,11 +179,10 @@ int main(int argc, char* argv[]) {
   if (bool(args.at("<inspec>")))
     io->readspec(args.at("<inspec>").asString(), EIN, flux);
 
-  if (ELIS.empty()) ELIS = EIN;
-  assert(!ELIS.empty() && "The ekin axis of LIS spectrum should be given.");
-
-  if (ETOA.empty()) ETOA = EIN.empty() ? ELIS : EIN;
+  if (ETOA.empty()) ETOA = EIN;
   assert(!ETOA.empty() && "The ekin axis of TOA spectrum should be given.");
+
+  if (ELIS.empty()) ELIS = EIN.empty() ? ETOA : EIN;
 
   cout << "ETOA.size() = " << ETOA.size() << endl;
   vector<vector<double>> weight;  // Green function matrix

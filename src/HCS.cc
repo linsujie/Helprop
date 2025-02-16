@@ -202,6 +202,8 @@ bool HCS::spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter) cons
   double r1;
   double dangle = - asin(vdot0) * fmin(diter / vdot.r_cs0, 1); // the dangle should be smaller when the distance is much small than r_cs
 
+  if (dangle > 5 * deg) dangle = 5 * deg; // Avoid the dangle too large
+
   int id = 0;
   do {
     id++;

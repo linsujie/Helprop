@@ -44,88 +44,39 @@ void newton_test() {
   cout << setprecision(10) << "s2: " << s2.solve(4, 1e-7) << endl;
 }
 
-void phi0_r_test(particle& p) {
-  p.hcsform = particle::Kota_Jokipii;
-  p.r = 14 * AU;
-  p.theta = 70 * deg;
-  double phi0 = p.Phi0_S(p.theta);
-  double rlow, rup;
-  p.r_bound(p.r, p.phi, phi0, rlow, rup);
-
-  cout << "r rlow rup" << p.r / AU << " " << rlow / AU << " " << rup / AU << endl;
-
-  cout << p.Theta_S(rlow, p.phi) / deg << endl;
-  cout << "diff theta: " << setprecision(15) << (p.theta - p.Theta_S(rlow, p.phi)) / deg
-    << " " << (p.theta - p.Theta_S(rup, p.phi)) / deg << endl;
+void phi0_r_test(HCS& hcs) {
+  HCS::hcsform = HCS::Kota_Jokipii;
+//  double r = 14 * AU;
+//  double theta = 70 * deg;
+//  double phi = 0;
+//  double phi0 = hcs.Phi0_S(theta);
+//  double rlow, rup;
+//  hcs.r_bound(r, phi, phi0, rlow, rup);
+//
+//  cout << "r rlow rup" << r / AU << " " << rlow / AU << " " << rup / AU << endl;
+//
+//  cout << hcs.Theta_S(rlow, phi) / deg << endl;
+//  cout << "diff theta: " << setprecision(15) << (theta - hcs.Theta_S(rlow, phi)) / deg
+//    << " " << (theta - hcs.Theta_S(rup, phi)) / deg << endl;
 }
 
 int main() {
-  particle p1;
-  p1.hcsform = particle::Jokipii_Thomas;
-  p1.mass = 0.5 * GeV;
-  p1.B0 = 5 * nT;
-  p1.polarity = 1;
-  p1.angle = 45 * deg;
-  p1.D = 5 * 1e22 * cm * cm / sec;
-  p1.indexA = 2;
-  p1.theta = pi / 2.0 + 1e-6;
-  p1.Vs_eq = p1.Wind();
-  p1.Bn = p1.B0 * AU * AU / 1.35883;
+  particle p;
+  HCS hcs(p.Wind());
+  HCS::hcsform = HCS::Kota_Jokipii;
+  hcs.angle = 15 * deg;
+  hcs.Vs_eq = p.Wind();
 
-  p1.r = 8.0 * AU;
-  p1.phi = 0.0;
-  p1.theta = 30 * deg;
-  p1.Theta_S(p1.r, p1.phi);
+  double x = -1.36394 * AU,
+         y =  -4.95836 * AU,
+         z =  1.33867 * AU;
+  double r = 1.00466 * AU; 
+  double theta =  1.28856;
+  double phi = 4.80683;
+  hcs.Theta_S(r, phi);
 
-  vector<double> rs;
-  vector<double> phis;
-  vector<double> thetas;
-  for (double i = 0; i < 50000; i += 1) {
-    rs.push_back(double(rand()) / RAND_MAX * 20 * AU);
-    phis.push_back(double(rand()) / RAND_MAX * 2 * pi);
-    thetas.push_back(double(rand()) / RAND_MAX * pi);
-  }
+  cout << r / AU << " " << theta / deg << " " << phi / deg << endl;
+  cout << hcs.get_distance(r, theta, phi) << endl;
 
-  vector<double> d1, d2;
-  d1.reserve(phis.size());
-  d2.reserve(phis.size());
-
-  ////newton_test();
-  ////phi0_r_test(p1);
-
-  //clock_t t1 = clock();
-  for (int i = 0; i < phis.size(); i++) {
-    p1.r = rs[i];
-    p1.phi = phis[i];
-    p1.theta = thetas[i];
-    d1.push_back(p1.get_HCS_distance());
-  }
-  //clock_t t2 = clock();
-  for (int i = 0; i < phis.size(); i++) {
-    p1.r = rs[i];
-    p1.phi = phis[i];
-    p1.theta = thetas[i];
-    d2.push_back(p1.get_HCS_distance_old(1e-4 * AU));
-  }
-  //clock_t t3 = clock();
-
-  //cout << "time cost: " << (double)(t2 - t1) / CLOCKS_PER_SEC
-  //  << " -> " << (double)(t3 - t2) / CLOCKS_PER_SEC
-  //  << "  | " << (double)(t3 - t2) / (t2 - t1) << endl;
-  
-  double diff = 0;
-  for (int i = 0; i < phis.size(); i++) {
-    if (2 * (d1[i] - d2[i]) / (d1[i] + d2[i]) > diff)
-      cout << "+++ " << rs[i] / AU << " " << thetas[i] / deg << " " << phis[i] / deg << " | " << d1[i] / AU << "  " << d2[i] / AU  << " " << 2 * (d1[i] - d2[i]) / (d1[i] + d2[i]) << endl;
-    diff = fmax(diff, 2 * (d1[i] - d2[i]) / (d1[i] + d2[i]));
-  }
-  cout << "max difference: " << diff << endl;
-
-  p1.r = rs[2197];// 1.983 * AU;
-  p1.theta = thetas[2197];// 148.529 * deg;
-  p1.phi = phis[2197];// 12.9353 * deg;
-  double dold = p1.get_HCS_distance_old(1e-4 * AU) / AU;
-  double d = p1.get_HCS_distance() / AU;
-  cout << dold << " " << d << endl;
   return 0;
 }

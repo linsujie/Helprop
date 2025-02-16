@@ -39,6 +39,6 @@ FOREACH(var HelProp IOTest ParticleTest)
 ENDFOREACH()
 
 IF (PROFILE_DEBUG)
-  ADD_EXECUTABLE(get_HCS_distance_test src/get_HCS_distance_test.cc src/particle.cc src/IO.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc)
+  ADD_EXECUTABLE(get_HCS_distance_test src/get_HCS_distance_test.cc src/particle.cc src/IO.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc src/HCS.cc)
   TARGET_LINK_LIBRARIES(get_HCS_distance_test docopt ${NLOPT_LIBRARIES} ${reflectcpp} ${libbson})
 ENDIF()

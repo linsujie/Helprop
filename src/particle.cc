@@ -127,7 +127,7 @@ void particle::step(const string& logname) {
   double Vdr_gc = 0, Vdt_gc = 0, Vdp_gc = 0;
   double Vdr_HCS = 0, Vdt_HCS = 0, Vdp_HCS = 0;
   double Rg, Vns, d_HCS;
-  double dr,dtheta,dphi,dEk;
+  double dr,dtheta,dphi,dEk,dwr,dwt,dwp;
   double Vs_dr, dr2V_dr;
   double krr, ktt, kpp, krp;
   double krr_dr, ktt_dr, kpp_dr, krp_dr;
@@ -138,13 +138,14 @@ void particle::step(const string& logname) {
   std::ofstream logfile(osname.str());
 
   if (logfile.is_open())
-     logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],dEk[GeV],drift[km/s],Vdr_gc[km/s],Vdr_HCS[km/s],d_HCS[AU],Rg[AU]" << endl;
+     logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],dEk[GeV],drift[km/s],Vdr_gc[km/s],Vdr_HCS[km/s],d_HCS[AU],Rg[AU],dwr[AU]" << endl;
   auto write_log = [&]() {
     if (logfile.is_open())
       logfile << Dt/day/30. << "," << r/AU << "," << theta << "," << phi << "," << Ek/GeV << "," << dEk/GeV
         << "," << drift/(km/sec)
         << "," << Vdr_gc/(km/sec) << "," << Vdr_HCS/(km/sec)
         << "," << d_HCS/AU << "," << Rg/AU
+        << "," << dwr/AU
         << endl;
   };
 
@@ -208,9 +209,9 @@ void particle::step(const string& logname) {
     double Vdt = Vdt_gc + Vdt_HCS;
     double Vdp = Vdp_gc + Vdp_HCS;
 
-    double dwr = dist(gen) * sqrt(dt);
-    double dwt = dist(gen) * sqrt(dt);
-    double dwp = dist(gen) * sqrt(dt);
+    dwr = dist(gen) * sqrt(dt);
+    dwt = dist(gen) * sqrt(dt);
+    dwp = dist(gen) * sqrt(dt);
     //if(3<fabs(dwr)) dwr = dist(gen);
     //if(3<fabs(dwt)) dwt = dist(gen);
     //if(3<fabs(dwp)) dwp = dist(gen);
@@ -236,14 +237,19 @@ void particle::step(const string& logname) {
                     ) / (r * sin(theta)) * dt
                     + dwp;
 
-    double r_next = r + dr;
-    Vs_dr = Wind(r_next, theta, phi, HCS::angle);
-    dr2V_dr = (r_next * r_next * Vs_dr - r * r * Vs) / dr;
-    dEk = dr2V_dr / 3 / fmax(r, fabs(r_next)) / fmax(r, fabs(r_next)) * p2 / E * dt;
+    dEk = 0;
+    if (r >= 1 * AU && r + dr >= 1 * AU) {
+      double r_next = r + dr;
+      Vs_dr = Wind(r_next, theta, phi, HCS::angle);
+      dr2V_dr = (r_next * r_next * Vs_dr - r * r * Vs) / dr;
+      dEk = dr2V_dr / 3 / fmax(r, fabs(r_next)) / fmax(r, fabs(r_next)) * p2 / E * dt;
+    }
 
     write_log();
 
     r += dr;
+    if (r < 0.5 * AU) r = 1 * AU - r; // reflect the particle from the near center region to avoid them captured
+
     theta += dtheta;
     phi += dphi;
     Ek += dEk;

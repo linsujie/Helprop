@@ -27,7 +27,7 @@ This Routine is used to Check the simulation of one particle.
       -a ANGLE, --angle ANGLE           Tilt angle of HCS in deg [default: 15].
       -D D0, --D0 D0                    Reference diffusion coefficient in unit 1e22 cm^2/s [default: 5].
       -R R0, --R0 R0                    Reference rigidity for the diffusion coefficient in unit GV [default: 1].
-      --indexA INDEXA                   Diffusion index a [default: 2].
+      --indexA INDEXA                   Diffusion index a [default: 1].
       --ekin EKINS                     The ekin of particle [default: 0.5].
 )";
 int main(int argc, char* argv[]) {

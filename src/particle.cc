@@ -127,6 +127,8 @@ void particle::step(const string& logname) {
   double Vdr_gc = 0, Vdt_gc = 0, Vdp_gc = 0;
   double Vdr_HCS = 0, Vdt_HCS = 0, Vdp_HCS = 0;
   double Rg, Vns, d_HCS;
+  double dr,dtheta,dphi,dEk;
+  double Vs_dr, dr2V_dr;
   double krr, ktt, kpp, krp;
   double krr_dr, ktt_dr, kpp_dr, krp_dr;
   double krr_dt, ktt_dt, kpp_dt, krp_dt;
@@ -136,10 +138,10 @@ void particle::step(const string& logname) {
   std::ofstream logfile(osname.str());
 
   if (logfile.is_open())
-     logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],drift[km/s],Vdr_gc[km/s],Vdr_HCS[km/s],d_HCS[AU],Rg[AU]" << endl;
+     logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],dEk[GeV],drift[km/s],Vdr_gc[km/s],Vdr_HCS[km/s],d_HCS[AU],Rg[AU]" << endl;
   auto write_log = [&]() {
     if (logfile.is_open())
-      logfile << Dt/day/30. << "," << r/AU << "," << theta << "," << phi << "," << Ek/GeV
+      logfile << Dt/day/30. << "," << r/AU << "," << theta << "," << phi << "," << Ek/GeV << "," << dEk/GeV
         << "," << drift/(km/sec)
         << "," << Vdr_gc/(km/sec) << "," << Vdr_HCS/(km/sec)
         << "," << d_HCS/AU << "," << Rg/AU
@@ -167,14 +169,13 @@ void particle::step(const string& logname) {
     K(r, theta, heaviside, kpara, B, krr, ktt, kpp, krp);
     K(r * h, theta, heaviside, kpara, krr_dr, ktt_dr, kpp_dr, krp_dr);
     K(r, theta * h, heaviside, kpara, krr_dt, ktt_dt, kpp_dt, krp_dt);
-    double Vs_dr = Wind(r * h, theta, phi, HCS::angle);
+    Vs_dr = Wind(r * h, theta, phi, HCS::angle);
 
     double dr2krr_dr = (r * r * h * h * krr_dr - r * r * krr) / r / dh;
     double dstktt_dt = (sin(theta * h) * ktt_dt - sin(theta) * ktt) / theta / dh;
     double dkrp_dp = 0,
            dkpp_dp = 0;
     double drkrp_dr = (r * h * krp_dr - r * krp) / r / dh;
-    double dr2V_dr = (r * r * h * h * Vs_dr - r * r * Vs) / r / dh;
 
     double gamma = r * HCS::Omega * sin(theta) / Vs;
 
@@ -218,26 +219,29 @@ void particle::step(const string& logname) {
 
     if (r < 4 * AU) dwr = fabs(dwr);
 
-    write_log();
-
-    double dr = - (Vs + Vdr
+    dr = - (Vs + Vdr
                   + 1 / r / r * dr2krr_dr
                   + 1 / r / sin(theta) * dkrp_dp
                   ) * dt
                   + dwr;
 
-    double dtheta = - (Vdt
+    dtheta = - (Vdt
                       + 1 / r / sin(theta) * dstktt_dt
                       ) / r * dt
                       + dwt;
 
-    double dphi = - (Vdp
+    dphi = - (Vdp
                     + 1 / r / sin(theta) * dkpp_dp
                     + 1 / r * drkrp_dr
                     ) / (r * sin(theta)) * dt
                     + dwp;
 
-    double dEk = dr2V_dr / 3 / r / r * p2 / E * dt;
+    double r_next = r + dr;
+    Vs_dr = Wind(r_next, theta, phi, HCS::angle);
+    dr2V_dr = (r_next * r_next * Vs_dr - r * r * Vs) / dr;
+    dEk = dr2V_dr / 3 / fmax(r, fabs(r_next)) / fmax(r, fabs(r_next)) * p2 / E * dt;
+
+    write_log();
 
     r += dr;
     theta += dtheta;

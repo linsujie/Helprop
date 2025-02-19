@@ -213,7 +213,7 @@ bool HCS::spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter) cons
   } while (vdot(r1) * vdot0 > 0);
   //if (r1 < 0) r1 = 1e-5 * AU;
 
-  cout << "r1 = " << r1 / AU << " dangle = " << dangle / deg << endl;
+  //cout << "r1 = " << r1 / AU << " dangle = " << dangle / deg << endl;
   double rh = ridders_method(vdot, vdot.r_cs0, r1, 1e-3);
 
   p_cs.set_spherical(rh, vdot.theta_cs, vdot.phi0 -  fabs(rh * ov));

@@ -248,6 +248,8 @@ void particle::step(const string& logname) {
     phi += dphi;
     Ek += dEk;
 
+    Ek = fabs(Ek);
+
     if (r < 0) {
       r = -r;
       theta = pi - theta;

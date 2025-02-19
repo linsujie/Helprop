@@ -161,7 +161,7 @@ class SpiralVdot {
     ov(ov_), theta_cs(p_cs.theta()), phi0(phi_cs0 + r_cs0 * ov), ctheta(p_cs.z / r_cs0), stheta(sqrt(1 - ctheta * ctheta)) {}
 
   Vec tangent_vec(double r, const Vec& point) const {
-    double rphi = r * stheta;
+    double rphi = fabs(r) * stheta;
     double sphi = point.y / rphi, cphi = point.x / rphi;
 
     Vec dr(stheta * cphi, stheta * sphi, ctheta);
@@ -175,18 +175,19 @@ class SpiralVdot {
      ************************************************************/
     Vec dv = - ov * dphi + dr;
     dv.normalize();
-    return dv;
+    return r > 0 ? dv : - dv;
   }
 
   double operator()(double r) const {
     Vec p_cs;
     if (r == r_cs0) p_cs = p_cs0;
     else {
-      double phi = phi0 - r * ov;
+      double phi = phi0 - fabs(r * ov);
       p_cs.set_spherical(r, theta_cs, phi);
     }
 
     Vec dl = target_point - p_cs;
+    //cout << fabs(r) / AU << " " << p_cs.theta() << " " << p_cs.phi() << " " << dl.dot(tangent_vec(r, p_cs)) / dl.len() << endl;
     return dl.dot(tangent_vec(r, p_cs)) / dl.len();
   }
 };
@@ -197,31 +198,33 @@ bool HCS::spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter) cons
   SpiralVdot vdot(ov, p_cs, target_point);
 
   double vdot0 = vdot(vdot.r_cs0);
-  if (vdot0 == 0) return false;
+  if (vdot0 == 0) return true;
 
   double r1;
   double dangle = - asin(vdot0) * fmin(diter / vdot.r_cs0, 1); // the dangle should be smaller when the distance is much small than r_cs
 
-  if (dangle > 5 * deg) dangle = 5 * deg; // Avoid the dangle too large
+  if (fabs(dangle) > 5 * deg) dangle = dangle > 0 ? 5 * deg : - 5 * deg; // Avoid the dangle too large
 
   int id = 0;
   do {
     id++;
     r1 = (vdot.phi0 - vdot.phi_cs0 - id * dangle) / ov;
+    //cout << id << " r1 = " << r1 / AU << " vdot(r1) = " << vdot(r1)  << " " << vdot0 << endl;
   } while (vdot(r1) * vdot0 > 0);
   //if (r1 < 0) r1 = 1e-5 * AU;
 
+  cout << "r1 = " << r1 / AU << " dangle = " << dangle / deg << endl;
   double rh = ridders_method(vdot, vdot.r_cs0, r1, 1e-3);
 
-  p_cs.set_spherical(rh, vdot.theta_cs, vdot.phi0 -  rh * ov);
+  p_cs.set_spherical(rh, vdot.theta_cs, vdot.phi0 -  fabs(rh * ov));
   //cout << "++++ " << rh / AU << " " << vdot(rh) << " | " << (target_point - vdot.p_cs0).len() / AU << " " << (target_point - p_cs).len() / AU << endl;
 
   double diter_next = (target_point - p_cs).len();
   //cout << "diter -> next: " << diter / AU << " " << diter_next / AU << endl;
-  assert(rh > 0 && "the spiral_iterate should not give a negative radius");
+  //assert(rh > 0 && "the spiral_iterate should not give a negative radius");
   assert(diter_next < diter * (1 + 1e-8) && "the spiral_iterate should decrease the distance to the target point");
   diter = diter_next;
-  return true;
+  return rh > 0 ? true : false; // if the best fit point goes to negative radius, we should set spiral_iterate to fail and let the system change to point_iterate.
 }
 
 class WaveVdot {
@@ -563,6 +566,10 @@ double HCS::get_distance_polygon(double r, double theta, double phi, double Rg2,
     }
     return d_min;
 }
+
+inline void show_log(const string& title, double r, double theta, double phi, double diter, const Vec& point) {
+  //cout << title << ": " << r / AU << " " << theta / deg << " " << phi / deg << " | " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg << " -> " << diter / AU << endl;
+}
     
 double HCS::get_distance(double r, double theta, double phi) const {
   Vec target, p_cs;
@@ -582,21 +589,21 @@ double HCS::get_distance(double r, double theta, double phi) const {
            diter_last = 1e5 * AU;
 
     point.set_spherical(point.len(), Theta_S(point.len(), point.phi()), point.phi()); // initialize the point to HCS.
-    //cout << "begin:   " << r / AU << " " << theta / deg << " " << phi / deg << " | " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg << " -> " << diter / AU << endl;
     Vec dh = norm_vec(point);
     int viter = 0;
+    bool spiral_available = true;
     while (diter == 1e5 * AU || diter_last == 1e5 * AU || fabs(diter_last - diter) / diter_last > 1e-4) {
       diter_last = diter;
-      if (fabs(pi / 2 - theta) > angle - 0.5 * deg && fabs(pi / 2 - point.theta()) > angle - 0.5 * deg) {
-        spiral_iterate(target, point, diter);
-        //cout << "diter_s: " << r / AU << " " << theta / deg << " " << phi / deg << " | " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg << " -> " << diter / AU << endl;
+      if (fabs(pi / 2 - theta) > angle - 0.5 * deg && fabs(pi / 2 - point.theta()) > angle - 0.5 * deg && spiral_available) {
+        spiral_available = spiral_iterate(target, point, diter);
+        show_log("diter_s: ", r, theta, phi, diter, point);
         wave_iterate(target, point, diter);
-        //cout << "diter_w: " << r / AU << " " << theta / deg << " " << phi / deg << " | " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg << " -> " << diter / AU << endl;
+        show_log("diter_w: ", r, theta, phi, diter, point);
         dh = norm_vec(point);
         //cout << dh << endl;
       } else {
         point_iterate(target, point, dh, diter);
-        //cout << "diter: " << r / AU << " " << theta / deg << " " << phi / deg << " | " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg << " -> " << diter / AU << endl;
+        show_log("diter: ", r, theta, phi, diter, point);
       }
       //cout << diter_last / AU << " " << diter / AU << " " << (diter_last - diter) / diter_last << endl;
    }

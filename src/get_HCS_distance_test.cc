@@ -70,13 +70,13 @@ int main() {
   double x = -1.36394 * AU,
          y =  -4.95836 * AU,
          z =  1.33867 * AU;
-  double r = 1.00466 * AU; 
-  double theta =  1.28856;
-  double phi = 4.80683;
+  double r = 8.8125444e+10;
+  double theta =   1.3001124;
+  double phi = 6.1798528;
   hcs.Theta_S(r, phi);
 
   cout << r / AU << " " << theta / deg << " " << phi / deg << endl;
-  cout << hcs.get_distance(r, theta, phi) << endl;
+  cout << hcs.get_distance(r, theta, phi) / AU << endl;
 
   return 0;
 }

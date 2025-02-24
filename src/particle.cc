@@ -125,6 +125,7 @@ void particle::step(const string& logname) {
   double Dt = 0;
   double drift = 0;
   double Vdr_gc = 0, Vdt_gc = 0, Vdp_gc = 0;
+  double Vkrr = 0, Vkrp = 0;
   double Vdr_HCS = 0, Vdt_HCS = 0, Vdp_HCS = 0;
   double Rg, Vns, d_HCS;
   double dr,dtheta,dphi,dEk,dwr,dwt,dwp;
@@ -138,14 +139,17 @@ void particle::step(const string& logname) {
   std::ofstream logfile(osname.str());
 
   if (logfile.is_open())
-     logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],dEk[GeV],drift[km/s],Vdr_gc[km/s],Vdr_HCS[km/s],d_HCS[AU],Rg[AU],dwr[AU]" << endl;
+     logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],dEk[GeV],Vs[km/s],drift[km/s],Vdr_gc[km/s],Vdt_gc[km/s],Vdp_gc[km/s],Vdr_HCS[km/s],Vdt_HCS[km/s],Vdp_HCS[km/s],d_HCS[AU],Rg[AU],dwr[AU],dwt[rad],dwp[rad],dr[AU],dtheta[rad],dphi[rad]" << endl;
   auto write_log = [&]() {
     if (logfile.is_open())
       logfile << Dt/day/30. << "," << r/AU << "," << theta << "," << phi << "," << Ek/GeV << "," << dEk/GeV
+        << "," << Vs / (km/sec)
         << "," << drift/(km/sec)
-        << "," << Vdr_gc/(km/sec) << "," << Vdr_HCS/(km/sec)
+        << "," << Vdr_gc/(km/sec) << "," << Vdt_gc/(km/sec) << "," << Vdp_gc/(km/sec)
+        << "," << Vdr_HCS/(km/sec) << "," << Vdt_HCS/(km/sec) << "," << Vdp_HCS/(km/sec)
         << "," << d_HCS/AU << "," << Rg/AU
-        << "," << dwr/AU
+        << "," << dwr/AU << "," << dwt << "," << dwp
+        << "," << dr/AU << "," << dtheta << "," << dphi
         << endl;
   };
 
@@ -212,30 +216,26 @@ void particle::step(const string& logname) {
     dwr = dist(gen) * sqrt(dt);
     dwt = dist(gen) * sqrt(dt);
     dwp = dist(gen) * sqrt(dt);
-    //if(3<fabs(dwr)) dwr = dist(gen);
-    //if(3<fabs(dwt)) dwt = dist(gen);
-    //if(3<fabs(dwp)) dwp = dist(gen);
 
     coord_trans(krr, ktt, kpp, krp, dwr, dwt, dwp);
-
-    if (r < 4 * AU) dwr = fabs(dwr);
+    //if (r < 4 * AU) dwr = fabs(dwr);
 
     dr = - (Vs + Vdr
-                  + 1 / r / r * dr2krr_dr
-                  + 1 / r / sin(theta) * dkrp_dp
-                  ) * dt
-                  + dwr;
+            - 1 / r / r * dr2krr_dr
+            - 1 / r / sin(theta) * dkrp_dp
+            ) * dt
+            + dwr;
 
     dtheta = - (Vdt
-                      + 1 / r / sin(theta) * dstktt_dt
-                      ) / r * dt
-                      + dwt;
+                - 1 / r / sin(theta) * dstktt_dt
+                ) / r * dt
+                + dwt;
 
     dphi = - (Vdp
-                    + 1 / r / sin(theta) * dkpp_dp
-                    + 1 / r * drkrp_dr
-                    ) / (r * sin(theta)) * dt
-                    + dwp;
+              - 1 / r / sin(theta) * dkpp_dp
+              - 1 / r * drkrp_dr
+              ) / (r * sin(theta)) * dt
+              + dwp;
 
     dEk = 0;
     if (r >= 1 * AU && r + dr >= 1 * AU) {

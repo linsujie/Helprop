@@ -165,6 +165,8 @@ int main(int argc, char* argv[]) {
   else if (args.at("--iotype").asString() == "BSON")
     io = new IO_BSON();
 
+  IO::WRITEMODE write_mode = args.at("--append").asBool() ? IO::APPEND : IO::RECREATE;
+
   io->set_params(args);
 
   HCS::angle = stod(args.at("--angle").asString()) * Unit::deg;
@@ -213,7 +215,7 @@ int main(int argc, char* argv[]) {
   }
 
   if (bool(args.at("<outmatrix>"))) {
-    io->writematrix(args.at("<outmatrix>").asString(), ETOA, ELIS, weight);
+    io->writematrix(args.at("<outmatrix>").asString(), ETOA, ELIS, weight, write_mode);
     return 0;
   }
 
@@ -237,7 +239,7 @@ int main(int argc, char* argv[]) {
     Ospec.push_back(value);
   }
 
-  io->writespec(args.at("<outspec>").asString(), ETOA, Ospec);
+  io->writespec(args.at("<outspec>").asString(), ETOA, Ospec, write_mode);
 
   return 0;
 }

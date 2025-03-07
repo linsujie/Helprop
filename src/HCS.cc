@@ -1,6 +1,7 @@
 #include <vector>
 #include <map>
 #include <cassert>
+#include <iomanip>
 
 #include "HCS.h"
 #include "root_finding.h"
@@ -192,7 +193,7 @@ class SpiralVdot {
   }
 };
 
-bool HCS::spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter) const {
+bool HCS::spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter, double r, double theta, double phi) const {
   double ov = Omega / Vs_eq;
 
   SpiralVdot vdot(ov, p_cs, target_point);
@@ -222,7 +223,11 @@ bool HCS::spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter) cons
   double diter_next = (target_point - p_cs).len();
   //cout << "diter -> next: " << diter / AU << " " << diter_next / AU << endl;
   //assert(rh > 0 && "the spiral_iterate should not give a negative radius");
-  assert(diter_next < diter * (1 + 1e-8) && "the spiral_iterate should decrease the distance to the target point");
+  if (!(diter_next < diter * (1 + 1e-8))) {
+    std::cout << setprecision(20) << "shit: " << r << "," << theta << "," << phi << std::endl;
+    // assert(false && "the spiral_iterate should decrease the distance to the target point");
+    assert(false);
+  }
   diter = diter_next;
   return rh > 0 ? true : false; // if the best fit point goes to negative radius, we should set spiral_iterate to fail and let the system change to point_iterate.
 }
@@ -595,7 +600,7 @@ double HCS::get_distance(double r, double theta, double phi) const {
     while (diter == 1e5 * AU || diter_last == 1e5 * AU || fabs(diter_last - diter) / diter_last > 1e-4) {
       diter_last = diter;
       if (fabs(pi / 2 - theta) > angle - 0.5 * deg && fabs(pi / 2 - point.theta()) > angle - 0.5 * deg && spiral_available) {
-        spiral_available = spiral_iterate(target, point, diter);
+        spiral_available = spiral_iterate(target, point, diter, r, theta, phi);
         show_log("diter_s: ", r, theta, phi, diter, point);
         wave_iterate(target, point, diter);
         show_log("diter_w: ", r, theta, phi, diter, point);

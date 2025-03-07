@@ -70,9 +70,12 @@ int main() {
   double x = -1.36394 * AU,
          y =  -4.95836 * AU,
          z =  1.33867 * AU;
-  double r = 8.8125444e+10;
-  double theta =   1.3001124;
-  double phi = 6.1798528;
+  double r = 80993081300.300643921;
+  double theta =   1.3048851233998661758;
+  double phi = 6.2100926590590255216;
+//  double r = 8.8125444e+10;
+//  double theta =   1.3001124;
+//  double phi = 6.1798528;
   hcs.Theta_S(r, phi);
 
   cout << r / AU << " " << theta / deg << " " << phi / deg << endl;

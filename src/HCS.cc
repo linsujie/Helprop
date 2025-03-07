@@ -1,5 +1,6 @@
 #include <vector>
 #include <map>
+#include <iomanip>
 #include <cassert>
 #include <iomanip>
 
@@ -224,7 +225,7 @@ bool HCS::spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter, doub
   //cout << "diter -> next: " << diter / AU << " " << diter_next / AU << endl;
   //assert(rh > 0 && "the spiral_iterate should not give a negative radius");
   if (!(diter_next < diter * (1 + 1e-8))) {
-    std::cout << setprecision(20) << "shit: " << r << "," << theta << "," << phi << std::endl;
+    std::cout << setprecision(20) << "the spiral_iterate should decrease the distance to the target point: " << r << "," << theta << "," << phi << std::endl;
     // assert(false && "the spiral_iterate should decrease the distance to the target point");
     assert(false);
   }
@@ -328,16 +329,17 @@ bool HCS::wave_iterate(const Vec& target_point, Vec& p_cs, double& diter) const 
 
   //for (double vr = 0.1 * AU; vr < 5.2 * AU; vr += 0.05 * AU)
   //  cout << "-- " << vr / AU << " " << Theta_S(vr, vdot.phi_cs) / deg << " " << vdot(vr) << endl;
-  double rh = ridders_method(vdot, vdot.r_cs0, r1, 1e-3);
+  double rh = ridders_method(vdot, vdot.r_cs0, r1, 1e-5);
   //cout << vdot.r_cs0 / AU << " " << rh / AU << " " << r1 / AU << " | " << vdot0 << " " << vdot(rh) << " " << vdot(r1) << endl;
   //cout << "p_cs before: " << p_cs.len() / AU << " " << p_cs.theta() / deg << " " << Theta_S(p_cs.len(), vdot.phi_cs) / deg << " " << vdot.phi_cs / deg << " " << p_cs.phi() / deg << " " << p_cs / AU << endl;
   //cout << "set with: " << rh / AU << " " << Theta_S(rh, vdot.phi_cs) / deg << " " << vdot.phi_cs / deg << endl;
-  //p_cs.set_spherical(rh, Theta_S(rh, vdot.phi_cs), vdot.phi_cs);
+  p_cs.set_spherical(rh, Theta_S(rh, vdot.phi_cs), vdot.phi_cs);
   //cout << "set over: " << p_cs.len() / AU << " " << p_cs.theta() / deg << " " << p_cs.phi() / deg << endl;
   //cout << "p_cs after:  " << p_cs.len() / AU << " " << p_cs.theta() / deg << " " << Theta_S(p_cs.len(), vdot.phi_cs) / deg << " " << p_cs / AU << endl;
   //cout << "==== " << rh / AU << " " << vdot(rh) << " | " << (target_point - vdot.p_cs0).len() / AU << " " << (target_point - p_cs).len() / AU << endl;
 
   double diter_next = (target_point - p_cs).len();
+  //cout << diter_next << " " << diter << " " << rh / AU << " " << r1 / AU << " " << vdot.r_cs0 / AU  << endl;
   assert(diter_next <= diter * (1 + 1e-8) && "the wave_iterate should decrease the distance to the target point");
   diter = diter_next;
   return true;
@@ -573,7 +575,7 @@ double HCS::get_distance_polygon(double r, double theta, double phi, double Rg2,
 }
 
 inline void show_log(const string& title, double r, double theta, double phi, double diter, const Vec& point) {
-  //cout << title << ": " << r / AU << " " << theta / deg << " " << phi / deg << " | " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg << " -> " << diter / AU << endl;
+  //cout << setprecision(13) << title << ": " << r / AU << " " << theta / deg << " " << phi / deg << " | " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg << " -> " << diter / AU << endl;
 }
     
 double HCS::get_distance(double r, double theta, double phi) const {
@@ -602,7 +604,7 @@ double HCS::get_distance(double r, double theta, double phi) const {
       if (fabs(pi / 2 - theta) > angle - 0.5 * deg && fabs(pi / 2 - point.theta()) > angle - 0.5 * deg && spiral_available) {
         spiral_available = spiral_iterate(target, point, diter, r, theta, phi);
         show_log("diter_s: ", r, theta, phi, diter, point);
-        wave_iterate(target, point, diter);
+        if (wave_iterate(target, point, diter) == false) break;
         show_log("diter_w: ", r, theta, phi, diter, point);
         dh = norm_vec(point);
         //cout << dh << endl;

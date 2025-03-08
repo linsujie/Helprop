@@ -15,6 +15,7 @@ class HCS {
     double t0 = 0.0;
     double t = 0.0;
     double Vs_eq;
+    double resolution;
 
     HCS(double Vs_eq_);
     ~HCS();

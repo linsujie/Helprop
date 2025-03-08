@@ -335,6 +335,8 @@ bool HCS::wave_iterate(const Vec& target_point, Vec& p_cs, double& diter) const 
 
   double diter_next = (target_point - p_cs).len();
   //cout << diter_next << " " << diter << " " << rh / AU << " " << r1 / AU << " " << vdot.r_cs0 / AU  << endl;
+  if (diter < diter_next && diter_next < diter + resolution)
+    return false;
   assert(diter_next <= diter * (1 + 1e-8) && "the wave_iterate should decrease the distance to the target point");
   diter = diter_next;
   return true;
@@ -569,8 +571,8 @@ double HCS::get_distance_polygon(double r, double theta, double phi, double Rg2,
     return d_min;
 }
 
-inline void show_log(const string& title, double r, double theta, double phi, double diter, const Vec& point) {
-  //cout << setprecision(13) << title << ": " << r / AU << " " << theta / deg << " " << phi / deg << " | " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg << " -> " << diter / AU << endl;
+inline void show_log(const string& title, double r, double theta, double phi, double diter, double resolution, const Vec& point) {
+  //cout << setprecision(13) << title << ": " << r / AU << " " << theta / deg << " " << phi / deg << " | " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg << " -> " << diter / AU << " +- " << resolution / AU << endl;
 }
     
 double HCS::get_distance(double r, double theta, double phi) const {
@@ -594,18 +596,19 @@ double HCS::get_distance(double r, double theta, double phi) const {
     Vec dh = norm_vec(point);
     int viter = 0;
     bool spiral_available = true;
-    while (diter == 1e5 * AU || diter_last == 1e5 * AU || fabs(diter_last - diter) / diter_last > 1e-4) {
+    while (diter == 1e5 * AU || diter_last == 1e5 * AU
+        || (fabs(diter_last - diter) / diter_last > 1e-4 && fabs(diter_last - diter) > resolution)) {
       diter_last = diter;
       if (fabs(pi / 2 - theta) > angle - 0.5 * deg && fabs(pi / 2 - point.theta()) > angle - 0.5 * deg && spiral_available) {
         spiral_available = spiral_iterate(target, point, diter);
-        show_log("diter_s: ", r, theta, phi, diter, point);
+        show_log("diter_s: ", r, theta, phi, diter, resolution, point);
         if (wave_iterate(target, point, diter) == false) break;
-        show_log("diter_w: ", r, theta, phi, diter, point);
+        show_log("diter_w: ", r, theta, phi, diter, resolution, point);
         dh = norm_vec(point);
         //cout << dh << endl;
       } else {
         point_iterate(target, point, dh, diter);
-        show_log("diter: ", r, theta, phi, diter, point);
+        show_log("diter: ", r, theta, phi, diter, resolution, point);
       }
       //cout << diter_last / AU << " " << diter / AU << " " << (diter_last - diter) / diter_last << endl;
    }

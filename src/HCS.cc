@@ -304,7 +304,7 @@ class WaveVdot {
   }
 };
 
-bool HCS::wave_iterate(const Vec& target_point, Vec& p_cs, double& diter) const {
+bool HCS::wave_iterate(const Vec& target_point, Vec& p_cs, double& diter, double r, double theta, double phi) const {
   double ov = Omega / Vs_eq;
 
   WaveVdot vdot(ov, p_cs, target_point, this);
@@ -340,7 +340,11 @@ bool HCS::wave_iterate(const Vec& target_point, Vec& p_cs, double& diter) const 
 
   double diter_next = (target_point - p_cs).len();
   //cout << diter_next << " " << diter << " " << rh / AU << " " << r1 / AU << " " << vdot.r_cs0 / AU  << endl;
-  assert(diter_next <= diter * (1 + 1e-8) && "the wave_iterate should decrease the distance to the target point");
+  if (!(diter_next <= diter * (1 + 1e-8))) {
+    std::cout << setprecision(20) << "the wave_iterate should decrease the distance to the target point" << r << "," << theta << "," << phi << std::endl;
+    // assert(diter_next <= diter * (1 + 1e-8) && "the wave_iterate should decrease the distance to the target point");
+    assert(false);
+  }
   diter = diter_next;
   return true;
 }
@@ -604,7 +608,7 @@ double HCS::get_distance(double r, double theta, double phi) const {
       if (fabs(pi / 2 - theta) > angle - 0.5 * deg && fabs(pi / 2 - point.theta()) > angle - 0.5 * deg && spiral_available) {
         spiral_available = spiral_iterate(target, point, diter, r, theta, phi);
         show_log("diter_s: ", r, theta, phi, diter, point);
-        if (wave_iterate(target, point, diter) == false) break;
+        if (wave_iterate(target, point, diter, r, theta, phi) == false) break;
         show_log("diter_w: ", r, theta, phi, diter, point);
         dh = norm_vec(point);
         //cout << dh << endl;

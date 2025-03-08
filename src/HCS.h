@@ -3,6 +3,8 @@
 #include "Vec.hh"
 #include "fcache.h"
 #include "Unit.h"
+#include <bitset>
+#include <cstring>
 
 enum Polygon { Dodecahedron, Icosahedron, test };
 
@@ -59,5 +61,9 @@ private:
       return Theta_S_Kota_Jokipii(phi0(r, phi));
     }
 };
+
+std::string doubleToBinaryString(double value);
+
+double binaryToDouble(const std::string& binaryString);
 
 #endif /* HCS_H */

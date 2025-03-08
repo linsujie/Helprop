@@ -2,6 +2,7 @@
 #include <map>
 #include <iomanip>
 #include <cassert>
+#include <iomanip>
 
 #include "HCS.h"
 #include "root_finding.h"
@@ -18,6 +19,37 @@ const double HCS::Omega = 2*Unit::pi/27.5/Unit::day;
 HCS::HCS(double Vs_eq_) : Vs_eq(Vs_eq_) {}
 
 HCS::~HCS() {}
+
+std::string doubleToBinaryString(double value) {
+    // 创建一个大小为 sizeof(double) 的字节数组
+    unsigned char* bytes = reinterpret_cast<unsigned char*>(&value);
+    std::string binaryString;
+
+    // 遍历每个字节，并将其转换为8位二进制字符串
+    for (int i = sizeof(double) - 1; i >= 0; --i) {
+        // 将每个字节转换为8位二进制字符串并拼接到结果中
+        binaryString += std::bitset<8>(bytes[i]).to_string();
+    }
+
+    return binaryString;
+}
+
+double binaryToDouble(const std::string& binaryString) {
+    // 确保输入的二进制字符串长度为64位
+    if (binaryString.length() != 64) {
+        throw std::invalid_argument("Binary string must be 64 bits long.");
+    }
+
+    // 将二进制字符串转换为字节数组
+    unsigned char bytes[sizeof(double)];
+    for (size_t i = 0; i < sizeof(double); ++i) {
+        // 提取每8位并转换为字节
+        bytes[sizeof(double) - 1 - i] = static_cast<unsigned char>(std::bitset<8>(binaryString.substr(i * 8, 8)).to_ulong());
+    }
+
+    // 将字节数组重新解释为double
+    return *reinterpret_cast<double*>(bytes);
+}
 
 struct nlopt_info {
   double x, y, z;

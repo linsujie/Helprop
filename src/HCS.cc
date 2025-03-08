@@ -20,6 +20,37 @@ HCS::HCS(double Vs_eq_) : Vs_eq(Vs_eq_) {}
 
 HCS::~HCS() {}
 
+std::string doubleToBinaryString(double value) {
+    // 创建一个大小为 sizeof(double) 的字节数组
+    unsigned char* bytes = reinterpret_cast<unsigned char*>(&value);
+    std::string binaryString;
+
+    // 遍历每个字节，并将其转换为8位二进制字符串
+    for (int i = sizeof(double) - 1; i >= 0; --i) {
+        // 将每个字节转换为8位二进制字符串并拼接到结果中
+        binaryString += std::bitset<8>(bytes[i]).to_string();
+    }
+
+    return binaryString;
+}
+
+double binaryToDouble(const std::string& binaryString) {
+    // 确保输入的二进制字符串长度为64位
+    if (binaryString.length() != 64) {
+        throw std::invalid_argument("Binary string must be 64 bits long.");
+    }
+
+    // 将二进制字符串转换为字节数组
+    unsigned char bytes[sizeof(double)];
+    for (size_t i = 0; i < sizeof(double); ++i) {
+        // 提取每8位并转换为字节
+        bytes[sizeof(double) - 1 - i] = static_cast<unsigned char>(std::bitset<8>(binaryString.substr(i * 8, 8)).to_ulong());
+    }
+
+    // 将字节数组重新解释为double
+    return *reinterpret_cast<double*>(bytes);
+}
+
 struct nlopt_info {
   double x, y, z;
   double r, phi, theta;
@@ -194,7 +225,7 @@ class SpiralVdot {
   }
 };
 
-bool HCS::spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter, double r, double theta, double phi) const {
+bool HCS::spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter, double r, double theta, double phi, long seed) const {
   double ov = Omega / Vs_eq;
 
   SpiralVdot vdot(ov, p_cs, target_point);
@@ -225,7 +256,7 @@ bool HCS::spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter, doub
   //cout << "diter -> next: " << diter / AU << " " << diter_next / AU << endl;
   //assert(rh > 0 && "the spiral_iterate should not give a negative radius");
   if (!(diter_next < diter * (1 + 1e-8))) {
-    std::cout << setprecision(20) << "the spiral_iterate should decrease the distance to the target point: " << r << "," << theta << "," << phi << std::endl;
+    std::cout << setprecision(40) << "the spiral_iterate should decrease the distance to the target point," << doubleToBinaryString(r) << "," << doubleToBinaryString(theta) << "," << doubleToBinaryString(phi) << "," << seed << std::endl;
     // assert(false && "the spiral_iterate should decrease the distance to the target point");
     assert(false);
   }
@@ -304,7 +335,7 @@ class WaveVdot {
   }
 };
 
-bool HCS::wave_iterate(const Vec& target_point, Vec& p_cs, double& diter, double r, double theta, double phi) const {
+bool HCS::wave_iterate(const Vec& target_point, Vec& p_cs, double& diter, double r, double theta, double phi, long seed) const {
   double ov = Omega / Vs_eq;
 
   WaveVdot vdot(ov, p_cs, target_point, this);
@@ -341,7 +372,7 @@ bool HCS::wave_iterate(const Vec& target_point, Vec& p_cs, double& diter, double
   double diter_next = (target_point - p_cs).len();
   //cout << diter_next << " " << diter << " " << rh / AU << " " << r1 / AU << " " << vdot.r_cs0 / AU  << endl;
   if (!(diter_next <= diter * (1 + 1e-8))) {
-    std::cout << setprecision(20) << "the wave_iterate should decrease the distance to the target point" << r << "," << theta << "," << phi << std::endl;
+    std::cout << setprecision(40) << "the wave_iterate should decrease the distance to the target point," << doubleToBinaryString(r) << "," << doubleToBinaryString(theta) << "," << doubleToBinaryString(phi) << "," << seed << std::endl;
     // assert(diter_next <= diter * (1 + 1e-8) && "the wave_iterate should decrease the distance to the target point");
     assert(false);
   }
@@ -582,7 +613,7 @@ inline void show_log(const string& title, double r, double theta, double phi, do
   //cout << setprecision(13) << title << ": " << r / AU << " " << theta / deg << " " << phi / deg << " | " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg << " -> " << diter / AU << endl;
 }
     
-double HCS::get_distance(double r, double theta, double phi) const {
+double HCS::get_distance(double r, double theta, double phi, long seed) const {
   Vec target, p_cs;
   target.set_spherical(r, theta, phi);
 
@@ -606,9 +637,9 @@ double HCS::get_distance(double r, double theta, double phi) const {
     while (diter == 1e5 * AU || diter_last == 1e5 * AU || fabs(diter_last - diter) / diter_last > 1e-4) {
       diter_last = diter;
       if (fabs(pi / 2 - theta) > angle - 0.5 * deg && fabs(pi / 2 - point.theta()) > angle - 0.5 * deg && spiral_available) {
-        spiral_available = spiral_iterate(target, point, diter, r, theta, phi);
+        spiral_available = spiral_iterate(target, point, diter, r, theta, phi, seed);
         show_log("diter_s: ", r, theta, phi, diter, point);
-        if (wave_iterate(target, point, diter, r, theta, phi) == false) break;
+        if (wave_iterate(target, point, diter, r, theta, phi, seed) == false) break;
         show_log("diter_w: ", r, theta, phi, diter, point);
         dh = norm_vec(point);
         //cout << dh << endl;

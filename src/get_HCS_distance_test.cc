@@ -3,6 +3,7 @@
 #include "newton_solver.h"
 #include "root_finding.h"
 #include "particle.h"
+#include <cassert>
 
 using namespace std;
 using namespace Unit;
@@ -70,16 +71,18 @@ int main() {
   double x = -1.36394 * AU,
          y =  -4.95836 * AU,
          z =  1.33867 * AU;
-  double r = 80993081300.300643921;
-  double theta =   1.3048851233998661758;
-  double phi = 6.2100926590590255216;
+  assert(1.234 == binaryToDouble(doubleToBinaryString(1.234)));
+  double r = binaryToDouble("0100001010101000101110011011000010100100100101000101101101011100");
+  double theta = binaryToDouble("0011111111111101010011100001101101101001001011110100011000100111");
+  double phi = binaryToDouble("0100000000000110000100100100101101010110110000010111110011101000");
 //  double r = 8.8125444e+10;
 //  double theta =   1.3001124;
 //  double phi = 6.1798528;
+  cout << r << " " << theta << " " << phi << endl;
   hcs.Theta_S(r, phi);
 
   cout << r / AU << " " << theta / deg << " " << phi / deg << endl;
-  cout << hcs.get_distance(r, theta, phi) / AU << endl;
+  cout << hcs.get_distance(r, theta, phi, 0) / AU << endl;
 
   return 0;
 }

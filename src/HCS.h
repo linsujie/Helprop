@@ -3,6 +3,8 @@
 #include "Vec.hh"
 #include "fcache.h"
 #include "Unit.h"
+#include <bitset>
+#include <cstring>
 
 enum Polygon { Dodecahedron, Icosahedron, test };
 
@@ -20,7 +22,7 @@ class HCS {
     ~HCS();
 
     double get_distance_old(double r, double theta, double phi, double ftol_abs) const;
-    double get_distance(double r, double theta, double phi) const;
+    double get_distance(double r, double theta, double phi, long seed) const;
     double get_distance_polygon(double r, double theta, double phi, double Rg2, Polygon polygon = Polygon::Dodecahedron) const;
 
     double get_raw_distance(double r, double theta) const;
@@ -41,8 +43,8 @@ private:
 
     void r_bound(double r, double phi, double phi0, double& rlow, double& rup) const;
 
-    bool spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter, double r, double theta, double phi) const;
-    bool wave_iterate(const Vec& target_point, Vec& p_cs, double& diter, double r, double theta, double phi) const;
+    bool spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter, double r, double theta, double phi, long seed) const;
+    bool wave_iterate(const Vec& target_point, Vec& p_cs, double& diter, double r, double theta, double phi, long seed) const;
     bool point_iterate(const Vec& target_point, Vec& p_cs, Vec& dh, double& diter) const;
 
     static double Phi0_S_Jokipii_Thomas(double);
@@ -58,5 +60,9 @@ private:
       return Theta_S_Kota_Jokipii(phi0(r, phi));
     }
 };
+
+std::string doubleToBinaryString(double value);
+
+double binaryToDouble(const std::string& binaryString);
 
 #endif /* HCS_H */

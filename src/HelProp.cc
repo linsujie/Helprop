@@ -63,10 +63,11 @@ vector<particle> simulating(const particle& template_particle, int number, int t
       if (Particle[i].fix_seed)
         Particle[i].seed += i;
 
-      Particle[i].step(logname);
       cerr << ">>particle " << i << " seed " << Particle[i].seed << ": "
         << " Ek " << template_particle.Ek / Unit::GeV
-        << "GeV -> " << Particle[i].Ek / Unit::GeV << "GeV" << endl;
+        << "GeV -> ";
+      Particle[i].step(logname);
+      cerr << Particle[i].Ek / Unit::GeV << "GeV" << endl;
     }
   };
 
@@ -82,10 +83,11 @@ vector<particle> simulating(const particle& template_particle, int number, int t
       if (Particle[i].fix_seed)
         Particle[i].seed += i;
 
-      Particle[i].step(logname);
       cerr << ">>particle " << i << " seed " << Particle[i].seed << ": "
         << " Ek " << template_particle.Ek / Unit::GeV
-        << "GeV -> " << Particle[i].Ek / Unit::GeV << "GeV" << endl;
+        << "GeV -> ";
+      Particle[i].step(logname);
+      cerr << Particle[i].Ek / Unit::GeV << "GeV" << endl;
     }
   }
   return Particle;

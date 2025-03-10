@@ -28,8 +28,8 @@ ENDIF()
 ADD_LIBRARY(helprop SHARED src/particle.cc src/HCS.cc src/IO.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc src/loginterp.cc)
 TARGET_LINK_LIBRARIES(helprop ${NLOPT_LIBRARIES})
 
-ADD_LIBRARY(helprop4py SHARED src/particle.cc src/HCS.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc)
-TARGET_LINK_LIBRARIES(helprop4py ${NLOPT_LIBRARIES})
+ADD_LIBRARY(helprop4externel SHARED src/particle.cc src/HCS.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc)
+TARGET_LINK_LIBRARIES(helprop4externel ${NLOPT_LIBRARIES})
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
 
@@ -38,7 +38,5 @@ FOREACH(var HelProp IOTest ParticleTest)
   TARGET_LINK_LIBRARIES(${var} docopt helprop ${reflectcpp} ${libbson})
 ENDFOREACH()
 
-IF (PROFILE_DEBUG)
-  ADD_EXECUTABLE(get_HCS_distance_test src/get_HCS_distance_test.cc src/particle.cc src/IO.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc src/HCS.cc)
-  TARGET_LINK_LIBRARIES(get_HCS_distance_test docopt ${NLOPT_LIBRARIES} ${reflectcpp} ${libbson})
-ENDIF()
+ADD_EXECUTABLE(get_HCS_distance_test src/get_HCS_distance_test.cc src/particle.cc src/IO.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc src/HCS.cc)
+TARGET_LINK_LIBRARIES(get_HCS_distance_test docopt ${NLOPT_LIBRARIES} ${reflectcpp} ${libbson})

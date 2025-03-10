@@ -194,7 +194,8 @@ void particle::step(const string& logname) {
     Rg = fabs(A * M_p / (B * Z * e * c_speed));
     d_HCS = hcs.get_raw_distance(r, theta);
     if (d_HCS < 2 * Rg) {
-      d_HCS = fabs(hcs.get_distance(r, theta, phi, seed));
+      hcs.resolution = 0.001 * Rg;
+      d_HCS = fabs(hcs.get_distance(r, theta, phi));
       if(d_HCS < 2*Rg)
         Vns = (0.457 - 0.412 * d_HCS / Rg + 0.0915 * d_HCS * d_HCS / Rg / Rg) * V_p * polarity * A_drift;//
   

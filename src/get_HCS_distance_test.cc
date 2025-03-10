@@ -82,7 +82,7 @@ int main() {
   hcs.Theta_S(r, phi);
 
   cout << r / AU << " " << theta / deg << " " << phi / deg << endl;
-  cout << hcs.get_distance(r, theta, phi, 0) / AU << endl;
+  cout << hcs.get_distance(r, theta, phi) / AU << endl;
 
   return 0;
 }

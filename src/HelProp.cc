@@ -71,11 +71,15 @@ vector<particle> simulating(const particle& template_particle, int number, int t
       if (Particle[ip_local].fix_seed)
         Particle[ip_local].seed += ip_local;
 
-      cerr << ">>particle " << i << " seed " << Particle[i].seed << ": "
+      cerr << ">>particle " << ip_local << " seed " << Particle[ip_local].seed << ": "
         << " Ek " << template_particle.Ek / Unit::GeV
         << "GeV -> ";
-      Particle[i].step(logname);
-      cerr << Particle[i].Ek / Unit::GeV << "GeV" << endl;
+      Particle[ip_local].step(logname);
+      cerr << Particle[ip_local].Ek / Unit::GeV << "GeV" << endl;
+      if (Particle[ip_local].Ek / Unit::GeV > 200) {
+        std::cout << "db - " << __FILE__ << ":" << __LINE__ << " " << Particle[ip_local].seed << std::endl;
+        assert(false);
+      }
     }
   };
 

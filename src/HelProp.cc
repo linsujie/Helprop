@@ -57,22 +57,30 @@ vector<particle> simulating(const particle& template_particle, int number, int t
   vector<particle> Particle;
   Particle.resize(number);
   vector<thread> threads;
-  auto thread_run = [template_particle, &Particle, &logname](int iplow, int ipup) mutable {
-    for (int i = iplow; i < ipup; i++) {
-      Particle[i] = template_particle;
-      if (Particle[i].fix_seed)
-        Particle[i].seed += i;
+  int ip = 0;
+  auto thread_run = [template_particle, &Particle, &logname, &ip, number]() mutable {
+    while (true) {
+      int ip_local;
+      {
+        std::lock_guard<std::mutex> lock(mtx);
+        ip_local = ip;
+        ip++;
+        if (ip >= number) break;
+      }
+      Particle[ip_local] = template_particle;
+      if (Particle[ip_local].fix_seed)
+        Particle[ip_local].seed += ip_local;
 
-      Particle[i].step(logname);
-      cerr << ">>particle " << i << " seed " << Particle[i].seed << ": "
+      Particle[ip_local].step(logname);
+      cerr << ">>particle " << ip_local << " seed " << Particle[ip_local].seed << ": "
         << " Ek " << template_particle.Ek / Unit::GeV
-        << "GeV -> " << Particle[i].Ek / Unit::GeV << "GeV" << endl;
+        << "GeV -> " << Particle[ip_local].Ek / Unit::GeV << "GeV" << endl;
     }
   };
 
   if (th_num > 1) {
     for (int ith = 0; ith < th_num; ith++)
-        threads.emplace_back(thread_run, ith * n_per_thread, min((ith + 1) * n_per_thread, number));
+        threads.emplace_back(thread_run);
 
     for (int j = 0; j < th_num; j++)
         threads[j].join();
@@ -202,7 +210,9 @@ int main(int argc, char* argv[]) {
     one.seed = seed + i * number;
 
     cout << "simulating Ek = " << one.Ek / Unit::GeV << endl;
+    time_t start = clock();
     auto Particle = simulating(one, number, th_num, bool(args.at("--logname")) ? args.at("--logname").asString() : "");
+    cout << "time costed per particle: " << (clock() - start) / (double)CLOCKS_PER_SEC * 1e3 / number << "ms" << endl;
 
     auto bin = count_GreenFunction(Particle, ELIS, A);
     weight.push_back(bin);

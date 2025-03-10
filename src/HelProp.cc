@@ -55,7 +55,7 @@ vector<particle> simulating(const particle& template_particle, int number, int t
   int n_per_thread = ceil(double(number) / th_num);
 
   vector<particle> Particle;
-  Particle.resize(number);
+  Particle.reserve(number);
   vector<thread> threads;
   int ip = 0;
   auto thread_run = [template_particle, &Particle, &logname, &ip, number]() mutable {
@@ -63,22 +63,26 @@ vector<particle> simulating(const particle& template_particle, int number, int t
       int ip_local;
       {
         std::lock_guard<std::mutex> lock(mtx);
+        if (ip >= number) break;
         ip_local = ip;
         ip++;
-        if (ip >= number) break;
       }
-      Particle[ip_local] = template_particle;
-      if (Particle[ip_local].fix_seed)
-        Particle[ip_local].seed += ip_local;
+      auto particle = template_particle;
+      if (particle.fix_seed)
+        particle.seed += ip_local;
 
-      cerr << ">>particle " << ip_local << " seed " << Particle[ip_local].seed << ": "
+      cerr << ">>particle " << ip_local << " seed " << particle.seed << ": "
         << " Ek " << template_particle.Ek / Unit::GeV
         << "GeV -> ";
-      Particle[ip_local].step(logname);
-      cerr << Particle[ip_local].Ek / Unit::GeV << "GeV" << endl;
-      if (Particle[ip_local].Ek / Unit::GeV > 200) {
-        std::cout << "db - " << __FILE__ << ":" << __LINE__ << " " << Particle[ip_local].seed << std::endl;
+      particle.step(logname);
+      cerr << particle.Ek / Unit::GeV << "GeV" << endl;
+      if (particle.Ek / Unit::GeV > 110) {
+        std::cout << "db - " << __FILE__ << ":" << __LINE__ << " " << particle.seed << std::endl;
         assert(false);
+      }
+      {
+        std::lock_guard<std::mutex> lock(mtx);
+        Particle.push_back(particle);
       }
     }
   };
@@ -89,6 +93,11 @@ vector<particle> simulating(const particle& template_particle, int number, int t
 
     for (int j = 0; j < th_num; j++)
         threads[j].join();
+
+    if (Particle.size() != number) {
+        std::cout << "Particle.size(): " << Particle.size() << std::endl;
+        assert(false);
+    }
   } else {
     for (int i = 0; i < number; i++) {
       Particle[i] = template_particle;

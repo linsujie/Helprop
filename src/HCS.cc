@@ -457,6 +457,14 @@ bool HCS::point_iterate(const Vec& target_point, Vec& p_cs, Vec& dh, double& dit
 double HCS::get_distance_polygon(double r, double theta, double phi, double Rg2, Polygon polygon) const {
     static map<Polygon, vector<vector<double>>> polygon_coordinates;
     if (polygon_coordinates.size() == 0) {
+        polygon_coordinates[Polygon::Icosahedron] = {
+            {-8.94427401e-01,  0.00000000e+00},
+            { 0.00000000e+00,  0.00000000e+00},
+            { 7.23606342e-01, -5.25731196e-01},
+            { 7.23606342e-01,  5.25731196e-01},
+            {-2.76392839e-01, -8.50650862e-01},
+            {-2.76392839e-01,  8.50650862e-01}
+        };
         polygon_coordinates[Polygon::Dodecahedron] = {
             {-8.49106388e-01,  4.09765508e-01},
             { 0.00000000e+00,  0.00000000e+00},
@@ -469,15 +477,7 @@ double HCS::get_distance_polygon(double r, double theta, double phi, double Rg2,
             { 6.96854372e-02, -9.40230521e-01},
             { 4.46086072e-01, -4.95429100e-01}
         };
-        polygon_coordinates[Polygon::Icosahedron] = {
-            {-8.94427401e-01,  0.00000000e+00},
-            { 0.00000000e+00,  0.00000000e+00},
-            { 7.23606342e-01, -5.25731196e-01},
-            { 7.23606342e-01,  5.25731196e-01},
-            {-2.76392839e-01, -8.50650862e-01},
-            {-2.76392839e-01,  8.50650862e-01}
-        };
-        polygon_coordinates[Polygon::test] = {
+        polygon_coordinates[Polygon::pseudorandom] = {
             {-0.78947368,  0.52631579},
             { 0.71956327, -0.07106798},
             {-0.83085071,  0.16411866},
@@ -584,10 +584,6 @@ double HCS::get_distance_polygon(double r, double theta, double phi, double Rg2,
     // --- //
 
     nlopt_info info = { r * sin(theta) * cos(phi), r * sin(theta) * sin(phi), r * cos(theta), r, phi, theta, this };
-    double dphi = Rg2 / r;
-    if (dphi > 0.5) {
-        dphi = asin(dphi);
-    }
 
     auto distance = [&](double r, double phi) {
       double vx, vy, vz;
@@ -595,9 +591,13 @@ double HCS::get_distance_polygon(double r, double theta, double phi, double Rg2,
       return sqrt((vx - info.x) * (vx - info.x) + (vy - info.y) * (vy - info.y) + (vz - info.z) * (vz - info.z));
     };
 
-    double d_min = __DBL_MAX__;
+    double d_min = 1.2 * Rg2;
     for (auto pc : polygon_coordinates[polygon]) {
-        double next_d = distance(r + Rg2 * pc[0], phi + dphi * pc[1]);
+        double dphi = d_min / r;
+        if (dphi > 0.5) {
+            dphi = asin(dphi);
+        }
+        double next_d = distance(r + d_min * pc[0], phi + dphi * pc[1]);
         if (next_d < d_min) d_min = next_d;
     }
     return d_min;

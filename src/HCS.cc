@@ -222,7 +222,7 @@ class SpiralVdot {
 
     Vec dl = target_point - p_cs;
     if (pflag) {
-      cout << endl << "--SVdot " << p_cs / AU << " " << tangent_vec(r, p_cs) / 10 << endl;
+      cout << "--SVdot " << p_cs / AU << " " << tangent_vec(r, p_cs) / 10 << endl;
     }
     //cout << fabs(r) / AU << " " << p_cs.theta() << " " << p_cs.phi() << " " << dl.dot(tangent_vec(r, p_cs)) / dl.len() << endl;
     return dl.dot(tangent_vec(r, p_cs)) / dl.len();
@@ -235,7 +235,7 @@ bool HCS::spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter) cons
   SpiralVdot vdot(ov, p_cs, target_point);
 
   double vdot0 = vdot(vdot.r_cs0);
-  if (vdot0 == 0) return true;
+  if (vdot0 == 0) return false;
 
   double r1;
   double dangle = - asin(vdot0) * fmin(diter / vdot.r_cs0, 1); // the dangle should be smaller when the distance is much small than r_cs
@@ -248,35 +248,37 @@ bool HCS::spiral_iterate(const Vec& target_point, Vec& p_cs, double& diter) cons
     r1 = (vdot.phi0 - vdot.phi_cs0 - id * dangle) / ov;
   } while (vdot(r1) * vdot0 > 0);
 
+  if (fabs(r1 - vdot.r_cs0) / vdot.r_cs0 < 1e-9) return false;
+
   double rh = ridders_method(vdot, vdot.r_cs0, r1, 1e-3);
 
   p_cs.set_spherical(rh, vdot.theta_cs, vdot.phi0 -  fabs(rh * ov));
 
   double diter_next = (target_point - p_cs).len();
-  if (diter_next > diter) {
-    cout << endl;
-    cout << target_point / AU << endl;
-    vdot.pflag = true;
-    double dr = (r1 - vdot.r_cs0) / 50;
-    cout << "| " << r1 << " " << vdot.r_cs0 << " " << dr << endl;
-    for (double vr = vdot.r_cs0 - 50 * dr; fabs(vr - r1) / fabs(r1) > 1e-5; vr += dr)
-      vdot(vr);
-    vdot.pflag = false;
-    cout << "diter diter_next: " << diter / AU << " " << diter_next / AU << endl;
-    cout << "thetas | rhs:     " << vdot.theta_cs << " " << p_cs.theta() << " | " << rh / AU << " " << p_cs.len() / AU << endl;
-    cout << "r0 rh r1:         " << vdot.r_cs0 / AU << " " << rh / AU << " " << r1 / AU << endl;
-    cout << "vdots:            " << vdot0 << " " << vdot(rh) << " " << vdot(r1) << endl;
-
-    p_cs.set_spherical(vdot.r_cs0, vdot.theta_cs, vdot.phi0 -  fabs(vdot.r_cs0 * ov));
-    cout << "dist: r0 r1 rh    " << (target_point - p_cs).len() / AU;
-    p_cs.set_spherical(r1, vdot.theta_cs, vdot.phi0 -  fabs(r1 * ov));
-    cout << " " << (target_point - p_cs).len() / AU;
-    p_cs.set_spherical(rh, vdot.theta_cs, vdot.phi0 -  fabs(rh * ov));
-    cout << " " << (target_point - p_cs).len() / AU << endl;
-
-    //double rhh = ridders_method(vdot, vdot.r_cs0, rh, 1e-3);
-    //cout << "rhh: " << rhh / AU << " " << vdot(rhh) << endl;
-  }
+//  if (diter_next > diter) {
+//    cout << endl;
+//    cout << setprecision(15) << target_point / AU << endl;
+//    vdot.pflag = true;
+//    double dr = (r1 - vdot.r_cs0) / 50;
+//    cout << "| " << r1 << " " << vdot.r_cs0 << " " << dr << endl;
+//    for (int ir = 0; ir < 100; ir += 1)
+//      vdot(vdot.r_cs0 + ir * dr);
+//    vdot.pflag = false;
+//    cout << "diter diter_next: " << diter / AU << " " << diter_next / AU << endl;
+//    cout << "thetas | rhs:     " << vdot.theta_cs << " " << p_cs.theta() << " | " << rh / AU << " " << p_cs.len() / AU << endl;
+//    cout << "r0 rh r1:         " << vdot.r_cs0 / AU << " " << rh / AU << " " << r1 / AU << endl;
+//    cout << "vdots:            " << vdot0 << " " << vdot(rh) << " " << vdot(r1) << endl;
+//
+//    p_cs.set_spherical(vdot.r_cs0, vdot.theta_cs, vdot.phi0 -  fabs(vdot.r_cs0 * ov));
+//    cout << "dist: r0 r1 rh    " << (target_point - p_cs).len() / AU;
+//    p_cs.set_spherical(r1, vdot.theta_cs, vdot.phi0 -  fabs(r1 * ov));
+//    cout << " " << (target_point - p_cs).len() / AU;
+//    p_cs.set_spherical(rh, vdot.theta_cs, vdot.phi0 -  fabs(rh * ov));
+//    cout << " " << (target_point - p_cs).len() / AU << endl;
+//
+//    //double rhh = ridders_method(vdot, vdot.r_cs0, rh, 1e-3);
+//    //cout << "rhh: " << rhh / AU << " " << vdot(rhh) << endl;
+//  }
   assert(diter_next < diter * (1 + 1e-8) && "the spiral_iterate should decrease the distance to the target point");
   diter = diter_next;
   return rh > 0 ? true : false; // if the best fit point goes to negative radius, we should set spiral_iterate to fail and let the system change to point_iterate.
@@ -377,6 +379,8 @@ bool HCS::wave_iterate(const Vec& target_point, Vec& p_cs, double& diter) const 
     ir++;
     r1 = vdot.r_cs0 + ir * vdr;
   } while (vdot(r1) * vdot0 > 0);
+
+  if (fabs(r1 - vdot.r_cs0) / vdot.r_cs0 < 1e-9) return false;
 
   double rh = ridders_method(vdot, vdot.r_cs0, r1, 1e-5);
   p_cs.set_spherical(rh, Theta_S(fabs(rh), vdot.phi_cs), vdot.phi_cs);

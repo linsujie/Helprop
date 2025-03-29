@@ -6,8 +6,10 @@ extern/include
 extern/mongo-c-driver/.*
 lib/
 CMakeFiles/
+build/
 cmake_install.cmake
 HelProp
+get_HCS_distance_test
 IOTest
 ParticleTest
 libdocopt.a

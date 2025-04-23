@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-set(CMAKE_CXX_FLAGS "-std=c++20 -O2")
+set(CMAKE_CXX_FLAGS "-std=c++20")
 project(HelProp)
 
 SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
@@ -22,8 +22,11 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src)
 INCLUDE_DIRECTORIES(${NLOPT_INCLUDE_DIR})
 
 IF (PROFILE_DEBUG)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pg")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -pg")
+ELSE()
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 ENDIF()
+MESSAGE(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 
 ADD_LIBRARY(helprop SHARED src/particle.cc src/HCS.cc src/IO.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc src/loginterp.cc)
 TARGET_LINK_LIBRARIES(helprop ${NLOPT_LIBRARIES})

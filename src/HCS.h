@@ -6,7 +6,7 @@
 #include <bitset>
 #include <cstring>
 
-enum Polygon { Dodecahedron, Icosahedron, test };
+enum Polygon { Dodecahedron, Icosahedron, pseudorandom };
 
 class HCS {
   public:

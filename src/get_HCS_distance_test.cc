@@ -81,16 +81,19 @@ int main() {
   hcs.Theta_S(r, phi);
 
   hcs.resolution = 1e-6 * AU;
-  for (unsigned seed = 0;;seed++) {
+  for (unsigned seed = 1335;;seed++) {
     srand(seed);
     for (int i = 0; i < 10000; i++) {
       r = double(rand()) / RAND_MAX * 120 * AU;
       theta = double(rand()) / RAND_MAX * pi;
       phi = double(rand()) / RAND_MAX * 2 * pi;
 
-      cout << setprecision(16) << seed << " " << r << " " << theta << " " << phi
-           << flush;
-      cout << " " << hcs.get_distance(r, theta, phi) / AU << " "
+      if (i % 5000 == 0)
+        cout << setprecision(16) << seed << " " << r << " " << theta << " " << phi << flush;
+
+      double d = hcs.get_distance(r, theta, phi);
+      if (i % 5000 == 0)
+        cout << " " << hcs.get_distance(r, theta, phi) / AU << " "
            << hcs.get_distance_old(r, theta, phi, 1e-4) / AU << endl;
     }
   }

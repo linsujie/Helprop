@@ -11,6 +11,7 @@
 class particle {
     public:
 
+    bool available;
     long seed = 0;
     long fix_seed = false;
     double A_drift = 1;

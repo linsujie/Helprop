@@ -75,7 +75,10 @@ vector<particle> simulating(const particle& template_particle, int number, int t
         << " Ek " << template_particle.Ek / Unit::GeV
         << "GeV -> ";
       Particle[ip_local].step(logname);
-      cerr << Particle[ip_local].Ek / Unit::GeV << "GeV" << endl;
+      cerr << Particle[ip_local].Ek / Unit::GeV << "GeV"
+        << (Particle[ip_local].available ? " success" : " fail")
+        << endl;
+      assert(Particle[ip_local].available && "The particle is supposed to energetic enough to get out of the solar center.");
     }
   };
 

@@ -117,6 +117,7 @@ void particle::step(const string& logname) {
   double dev = 1.0;
   std::normal_distribution<double> dist(mean, dev);
 
+  available = true;
   double record_T = 0.;
 
   // theta = 1e-3;
@@ -133,16 +134,22 @@ void particle::step(const string& logname) {
   double krr, ktt, kpp, krp;
   double krr_dr, ktt_dr, kpp_dr, krp_dr;
   double krr_dt, ktt_dt, kpp_dt, krp_dt;
+  double nflect = 0;
 
-  ostringstream osname;
-  if (!logname.empty()) osname << "s" << seed << "_" << logname;
-  std::ofstream logfile(osname.str());
+  std::ofstream *logfile = NULL;
+  if (!logname.empty()) {
+    ostringstream osname;
+    osname << "s" << seed << "_" << logname;
+    logfile = new std::ofstream(osname.str());
+  }
 
-  if (logfile.is_open())
-     logfile << "t[month],r[AU],theta[rad],phi[rad],Ek[GeV],dEk[GeV],Vs[km/s],drift[km/s],Vdr_gc[km/s],Vdt_gc[km/s],Vdp_gc[km/s],Vdr_HCS[km/s],Vdt_HCS[km/s],Vdp_HCS[km/s],d_HCS[AU],Rg[AU],dwr[AU],dwt[rad],dwp[rad],dr[AU],dtheta[rad],dphi[rad]" << endl;
+  if (logfile)
+     *logfile << "t[month],nflect,r[AU],theta[rad],phi[rad],Ek[GeV],dEk[GeV],Vs[km/s],drift[km/s],Vdr_gc[km/s],Vdt_gc[km/s],Vdp_gc[km/s],Vdr_HCS[km/s],Vdt_HCS[km/s],Vdp_HCS[km/s],d_HCS[AU],Rg[AU],dwr[AU],dwt[rad],dwp[rad],dr[AU],dtheta[rad],dphi[rad]" << endl;
   auto write_log = [&]() {
-    if (logfile.is_open())
-      logfile << Dt/day/30. << "," << r/AU << "," << theta << "," << phi << "," << Ek/GeV << "," << dEk/GeV
+    if (logfile)
+      *logfile << Dt/day/30.
+        << "," << nflect
+        << "," << r/AU << "," << theta << "," << phi << "," << Ek/GeV << "," << dEk/GeV
         << "," << Vs / (km/sec)
         << "," << drift/(km/sec)
         << "," << Vdr_gc/(km/sec) << "," << Vdt_gc/(km/sec) << "," << Vdp_gc/(km/sec)
@@ -249,7 +256,10 @@ void particle::step(const string& logname) {
     write_log();
 
     r += dr;
-    if (r < 0.5 * AU) r = 1 * AU - r; // reflect the particle from the near center region to avoid them captured
+    if (r < 0.5 * AU) { // reflect the particle from the near center region to avoid them captured
+      nflect++;
+      r = 1 * AU - r;
+    }
 
     theta += dtheta;
     phi += dphi;
@@ -273,10 +283,14 @@ void particle::step(const string& logname) {
 
     if (phi < 0 || 2 * pi < phi)
       phi -= floor(phi / (2 * pi)) * 2 * pi;
+    if (nflect >= 1000) {
+      available = false;
+      break;
+    }
   }
 
-  if (logfile.is_open()) { // Write the final state
+  if (logfile) { // Write the final state
     write_log();
-    logfile.close();
+    logfile->close();
   }
 }

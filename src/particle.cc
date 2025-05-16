@@ -18,14 +18,14 @@ particle::particle() :
   A(1), Z(1),
   polarity(-1), B0(5 * nT), indexA(2), D0(5 * 1e22 * cm * cm / sec), rigidity0(1 * GeV / e),
   Bn(B0 * AU * AU / 1.35883),
-  r(AU), theta(90*deg + 1e-10), phi(1e-10), hcs(Wind())
+  r(AU), theta(90*deg + 1e-10), phi(1e-10), hcs(Wind(), false)
   {}
 
 particle::particle(const map<string, docopt::value>& args) :
   A(args.at("--A").asLong()), Z(args.at("--Z").asLong()),
   polarity(args.at("--polarity").asLong()), B0(stod(args.at("--B0").asString()) * nT), indexA(stod(args.at("--indexA").asString())), D0(stod(args.at("--D0").asString()) * 1e22 * cm * cm / sec), rigidity0(stod(args.at("--R0").asString()) * GeV / e),
   Bn(B0 * AU * AU / 1.35883),
-  r(AU), theta(90*deg + 1e-6), phi(1e-10), hcs(Wind())
+  r(AU), theta(90*deg + 1e-6), phi(1e-10), hcs(Wind(), args.at("--hcs-intp").asBool())
 {}
 
 particle::~particle() {}

@@ -167,6 +167,7 @@ This Routine is used to simulate the modulation of particle within heliosphere.
       --elis ELIS                       The ekin/nucleon of LIS spectrum assigned in format min,max,nbin in GeV, it would follow the input spec or etoa if not given.
       --sample                          If given, to store the samples to the outmatrix or not, only available for BSON format.
       --iotype IOTYPE                   The input/output type (TXT, CSV, or BSON) [default: TXT].
+      --hcs-intp                        To interpolate HCS distance or not [default: false].
       --append                          Append the output to existing file [default: false].
       --logname LOGNAME                 The output logfile name.
 )";

@@ -5,6 +5,7 @@
 #include <iomanip>
 
 #include "HCS.h"
+#include "Unit.h"
 #include "root_finding.h"
 #include "newton_solver.h"
 #include "nlopt.hpp"
@@ -15,10 +16,19 @@ using namespace Unit;
 double HCS::angle = 45 * Unit::deg;
 HCS::HCSFORM HCS::hcsform = Jokipii_Thomas;
 const double HCS::Omega = 2*Unit::pi/27.5/Unit::day;
+KDInterp* HCS::kd_tab = NULL;
 
-HCS::HCS(double Vs_eq_) : Vs_eq(Vs_eq_) {}
+HCS::HCS(double Vs_eq_, bool interp_) : Vs_eq(Vs_eq_), interp(interp_) {
+  if (interp && kd_tab == NULL) refresh_table();
+}
 
 HCS::~HCS() {}
+
+void HCS::refresh_table() {
+  if (kd_tab != NULL) delete kd_tab;
+  resolution = 1e-7 * AU;
+  kd_tab = hcs_interp(*this);
+}
 
 std::string doubleToBinaryString(double value) {
     // 创建一个大小为 sizeof(double) 的字节数组
@@ -171,7 +181,7 @@ double HCS::Theta_S(double r, double phi) const {
   return 0;
 }
 extern "C" double Theta_S_C(double r, double phi) {
-  return HCS(430 * km / sec).Theta_S(r * AU, phi);
+  return HCS(430 * km / sec, false).Theta_S(r * AU, phi);
 }
 double HCS::Phi0_S(double theta) {
   if (hcsform == Jokipii_Thomas)
@@ -675,6 +685,8 @@ double HCS::get_distance_from_point(const Vec& target, Vec& point) const {
 }
     
 double HCS::get_distance(double r, double theta, double phi) const {
+  if (interp) return hcs_interp_eval(r, theta, phi, kd_tab, *this);
+
   Vec p_cs;
   return get_distance(r, theta, phi, p_cs);
 }

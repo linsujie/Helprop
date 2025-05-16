@@ -1,6 +1,7 @@
 #include <map>
 #include <vector>
 #include <iomanip>
+#include "HCS.h"
 #include "hcs_interp.h"
 #include "Unit.h"
 #include "Vec.hh"

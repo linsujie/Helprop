@@ -3,6 +3,7 @@
 #include "Vec.hh"
 #include "fcache.h"
 #include "Unit.h"
+#include "hcs_interp.h"
 #include <bitset>
 #include <cstring>
 
@@ -18,9 +19,13 @@ class HCS {
     double t = 0.0;
     double Vs_eq;
     double resolution;
+    bool interp;
+    static KDInterp *kd_tab;
 
-    HCS(double Vs_eq_);
+    HCS(double Vs_eq_, bool interp_);
     ~HCS();
+
+    void refresh_table();
 
     double get_distance_old(double r, double theta, double phi, double ftol_abs) const;
     double get_distance(double r, double theta, double phi) const;

@@ -641,12 +641,46 @@ double HCS::get_distance_polygon(double r, double theta, double phi, double Rg2,
     return d_min;
 }
 
-inline void show_log(const string& title, double r, double theta, double phi, double diter, double resolution, const Vec& point) {
-  //cout << setprecision(13) << title << ": " << r / AU << " " << theta / deg << " " << phi / deg << " | " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg << " -> " << diter / AU << " +- " << resolution / AU << endl;
+inline void show_line(const string& label) {
+  //cout << "-------------------------" << label << "-------------------------" << endl;
+}
+inline void show_log(const string& title, const Vec& target, double diter, double resolution, const Vec& point) {
+  //cout << setprecision(13) << title << ": " << target.len() / AU << " " << target.theta() / deg << " " << target.phi() / deg << " | " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg << " -> " << diter / AU << " +- " << resolution / AU << endl;
+}
+
+double HCS::get_distance_from_point(const Vec& target, Vec& point) const {
+  double diter = 1e5 * AU,
+         diter_last = 1e5 * AU;
+
+  point.set_spherical(point.len(), Theta_S(point.len(), point.phi()), point.phi()); // initialize the point to HCS.
+  Vec dh = norm_vec(point);
+  bool spiral_available = true;
+  while (diter == 1e5 * AU || diter_last == 1e5 * AU
+         || //(fabs(diter_last - diter) / diter_last > 1e-4 &&
+         fabs(diter_last - diter) > resolution) {
+    diter_last = diter;
+    if (fabs(pi / 2 - target.theta()) > angle - 0.5 * deg && fabs(pi / 2 - point.theta()) > angle - 0.5 * deg && spiral_available) {
+      spiral_available = spiral_iterate(target, point, diter);
+      show_log("diter_s: ", target, diter, resolution, point);
+      if (wave_iterate(target, point, diter) == false) break;
+      show_log("diter_w: ", target, diter, resolution, point);
+      dh = norm_vec(point);
+    } else {
+      point_iterate(target, point, dh, diter);
+      show_log("diter: ", target, diter, resolution, point);
+    }
+    //cout << diter_last / AU << " " << diter / AU << " " << (diter_last - diter) / diter_last << endl;
+  }
+  return (target - point).len();
 }
     
 double HCS::get_distance(double r, double theta, double phi) const {
-  Vec target, p_cs;
+  Vec p_cs;
+  return get_distance(r, theta, phi, p_cs);
+}
+
+double HCS::get_distance(double r, double theta, double phi, Vec& p_cs) const {
+  Vec target;
   target.set_spherical(r, theta, phi);
 
   double rlow, rup;
@@ -658,57 +692,42 @@ double HCS::get_distance(double r, double theta, double phi) const {
   if (theta_cs < pi / 2 - angle) theta_cs = pi / 2 - angle;
   else if (theta_cs > pi / 2 + angle) theta_cs = pi / 2 + angle;
 
-  auto distance_iter = [&](Vec& point, int& iter) -> double {
-    double diter = 1e5 * AU,
-           diter_last = 1e5 * AU;
-
-    point.set_spherical(point.len(), Theta_S(point.len(), point.phi()), point.phi()); // initialize the point to HCS.
-    Vec dh = norm_vec(point);
-    int viter = 0;
-    bool spiral_available = true;
-    while (diter == 1e5 * AU || diter_last == 1e5 * AU
-        || (fabs(diter_last - diter) / diter_last > 1e-4 && fabs(diter_last - diter) > resolution)) {
-      diter_last = diter;
-      if (fabs(pi / 2 - theta) > angle - 0.5 * deg && fabs(pi / 2 - point.theta()) > angle - 0.5 * deg && spiral_available) {
-        spiral_available = spiral_iterate(target, point, diter);
-        show_log("diter_s: ", r, theta, phi, diter, resolution, point);
-        if (wave_iterate(target, point, diter) == false) break;
-        show_log("diter_w: ", r, theta, phi, diter, resolution, point);
-        dh = norm_vec(point);
-      } else {
-        point_iterate(target, point, dh, diter);
-        show_log("diter: ", r, theta, phi, diter, resolution, point);
-      }
-      //cout << diter_last / AU << " " << diter / AU << " " << (diter_last - diter) / diter_last << endl;
-   }
-    return (target - point).len();
-  };
-
-  int ilow = 0, imid = 0, iup = 0;
-
-  //cout << "----------------------low------------------------" << endl;
+  Vec p_cs_l, p_cs_m, p_cs_u;
+  show_line("low");
   double dlow = 1e5 * AU;
-  if ((rup - r) / (r - rlow) > 0.35) {
-    p_cs.set_spherical(rlow, theta_cs, phi_cs);
-    dlow = distance_iter(p_cs, ilow);
+  if ((rup - r) / (r - rlow) > 0.1) {
+    p_cs_l.set_spherical(rlow, theta_cs, phi_cs);
+    dlow = get_distance_from_point(target, p_cs_l);
   }
 
-  //cout << "----------------------mid------------------------" << endl;
+  show_line("mid");
   double dmid = 1e5 * AU;
   if (fabs(pi / 2 - theta) < angle) {
-    p_cs.set_spherical(r, Theta_S(r, phi), phi);
-    dmid = distance_iter(p_cs, imid);
+    p_cs_m.set_spherical(r, Theta_S(r, phi), phi);
+    dmid = get_distance_from_point(target, p_cs_m);
   }
 
-  //cout << "----------------------up------------------------" << endl;
+  show_line("up");
   double dup = 1e5 * AU;
-  if ((r - rlow) / (rup - r) > 0.35) {
-    p_cs.set_spherical(rup, theta_cs, phi_cs);
-    dup = distance_iter(p_cs, iup);
+  if ((r - rlow) / (rup - r) > 0.1) {
+    p_cs_u.set_spherical(rup, theta_cs, phi_cs);
+    dup = get_distance_from_point(target, p_cs_u);
   }
 
-  double sign = Theta_S(r, phi) < theta ? -1 : 1;
-  return sign * fmin(fmin(dlow, dup), dmid);
+  double d = dlow;
+  p_cs = p_cs_l;
+
+  if (dmid < d) {
+    d = dmid;
+    p_cs = p_cs_m;
+  }
+
+  if (dup < d) {
+    d = dup;
+    p_cs = p_cs_u;
+  }
+
+  return sign(r, theta, phi) * d;
 }
 
 double HCS::get_raw_distance(double r, double theta) const {

@@ -24,12 +24,18 @@ class HCS {
 
     double get_distance_old(double r, double theta, double phi, double ftol_abs) const;
     double get_distance(double r, double theta, double phi) const;
+    double get_distance(double r, double theta, double phi, Vec& p_cs) const;
+    double get_distance_from_point(const Vec& target, Vec& p_cs) const;
     double get_distance_polygon(double r, double theta, double phi, double Rg2, Polygon polygon = Polygon::Dodecahedron) const;
 
     double get_raw_distance(double r, double theta) const;
 
     double Theta_S(double, double) const;                                     //theat_s function
     static double Phi0_S(double);
+
+    int sign(double r, double theta, double phi) const {
+      return Theta_S(r, phi) < theta ? -1 : 1;
+    }
 
     Vec norm_vec(const Vec& p_cs) const;
 

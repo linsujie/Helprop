@@ -14,7 +14,7 @@
 
 #include "ThreeDLookup.h"
 
-#include "KDInterp.h"
+#include "KDInterpSide.h"
 #include "hcs_interp.h"
 
 using namespace std;
@@ -84,59 +84,78 @@ int main() {
   HCS::angle = 15 * deg;
   HCS::hcsform = HCS::Kota_Jokipii;
   HCS hcs_real(p.Wind(), false);
-  hcs_real.resolution = 1e-7 * AU;
+  hcs_real.resolution = 5e-4 * AU;
   cout << "generating..." << endl;
   clock_t t1 = clock();
-  HCS hcs_intp(p.Wind(), true);
+  //HCS hcs_intp(p.Wind(), true);
+  //KDInterpSide *kd = hcs_interp(hcs_real, true);
+  KDInterpSide *kd = new KDInterpSide("dmap.bson");
   clock_t t2 = clock();
   cout << "generated..." << endl;
   cout << "time: " << (double(t2) - t1) / CLOCKS_PER_SEC << endl;
+  cout << "storing..." << endl;
+  kd->store_table("dmap.bson");
+  cout << "stored..." << endl;
 
   //cout << "generating..." << endl;
   //KDInterp *kd = hcs_interp(hcs, true);
-  //kd->store_table("dmap.bson");
-  //KDInterp *kd = new KDInterp("dmap.bson");
   //clock_t t2 = clock();
   //KDInterp kd(dist, {9.3035, 85.658, 92.46094}, {9.3036, 85.659, 92.46095}, 0.01, 1, "", tab_corr);
 
-  KDInterp *kd = hcs_intp.kd_tab;
-  double r_low = kd->xmin[0], r_up = kd->xmax[0];
-  double theta_low = kd->xmin[1], theta_up = kd->xmax[1];
-  double phi_low = kd->xmin[2], phi_up = kd->xmax[2];
+  //KDInterp *kd = hcs_intp.kd_tab;
+  //double ang = kd->xmid[0], angw = kd->width[0];
+  double r = kd->xmid[0], rw = kd->width[0];
+  double theta = kd->xmid[1], thetaw = kd->width[1];
+  double phi = kd->xmid[2], phiw = kd->width[2];
 
- long iter = 0;
   cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
-  const KDValue* pt;
+  const KDValueSide* pt;
   vector<double> vpoint;
   double maxval;
   ofstream hist("errhist.dat");
 
-  int N = 1000000;
-  vector<double> rs(N), thetas(N), phis(N), dreal(N), dint(N), err(N);
+  int N = 100000;
+  vector<double> angs(N),
+    rs(N), thetas(N), phis(N), dreal(N), dint(N), err(N);
   srand(1);
   for (int i = 0; i < N; i++) {
-    rs[i] = double(rand()) / RAND_MAX * (r_up - r_low) + r_low;
-    thetas[i] = double(rand()) / RAND_MAX * (theta_up - theta_low) + theta_low;
-    phis[i] = double(rand()) / RAND_MAX * (phi_up - phi_low) + phi_low;
+    rs[i] = double(rand()) / RAND_MAX * 2 * rw + r - rw;
+    thetas[i] = double(rand()) / RAND_MAX * 2 * thetaw + theta - thetaw;
+    phis[i] = double(rand()) / RAND_MAX * 2 * phiw + phi - phiw;
   }
 
   clock_t t0 = clock();
-  for (int i = 0; i < N; i++)
+  for (int i = 0; i < N; i++) {
+    //HCS::angle = angs[i];
     dreal[i] = hcs_real.get_distance(rs[i], thetas[i], phis[i]) / AU;
+  }
   clock_t treal = clock();
   for (int i = 0; i < N; i++)
-    dint[i] = hcs_intp.get_distance(rs[i], thetas[i], phis[i]) / AU;
+    dint[i] = hcs_interp_eval(rs[i], thetas[i], phis[i], kd, hcs_real) / AU;
   clock_t tint = clock();
 
+  //for (int i = 0; i < N; i++)
+  //  cout << rs[i] / AU << " " << thetas[i] / deg << " " << phis[i] / deg << " " << dreal[i] << " " << dint[i] << endl;
+
   double err_min = -1, err_max = -1, err_med = 0;
+  long Nerr = 0;
   for (int i = 0; i < N; i++) {
+    if (fabs(dreal[i]) > fabs(dint[i])) continue;
     err[i] = fabs(dreal[i] - dint[i]);
     if (err_min == -1 || err[i] < err_min) err_min = err[i];
     if (err_max == -1 || err[i] > err_max) err_max = err[i];
     err_med += err[i] * err[i];
+    //if (err[i] > 1) cout << i << endl;
+    hist << err[i] << endl;
+    Nerr++;
   }
-  err_med =  sqrt(err_med / N);
-  cout << "err: [" << err_min << ", " << err_max << "] -> " << err_med / N << endl;
+  //int ix = 998;
+  //double vint = hcs_interp_eval(rs[ix], thetas[ix], phis[ix], kd, hcs_real, true);
+  //double vreal = hcs_real.get_distance(rs[ix], thetas[ix], phis[ix]);
+  //cout << "vint: " << vint / AU << " vreal: " << vreal / AU << endl;
+
+  err_med = sqrt(err_med / Nerr);
+  cout << "err: [" << err_min << ", " << err_max << "] -> " << err_med << endl;
   cout << "real time: " << double(treal - t0) / CLOCKS_PER_SEC << "s " <<
     "intp time: " << double(tint - treal) / CLOCKS_PER_SEC << "s" << endl;
 

@@ -16,13 +16,15 @@ using namespace Unit;
 double HCS::angle = 45 * Unit::deg;
 HCS::HCSFORM HCS::hcsform = Jokipii_Thomas;
 const double HCS::Omega = 2*Unit::pi/27.5/Unit::day;
-KDInterp* HCS::kd_tab = NULL;
+KDInterpSide* HCS::kd_tab = NULL;
 
 HCS::HCS(double Vs_eq_, bool interp_) : Vs_eq(Vs_eq_), interp(interp_) {
   if (interp && kd_tab == NULL) refresh_table();
 }
 
-HCS::~HCS() {}
+HCS::~HCS() {
+  if (kd_tab != NULL) delete kd_tab;
+}
 
 void HCS::refresh_table() {
   if (kd_tab != NULL) delete kd_tab;
@@ -398,6 +400,9 @@ bool HCS::wave_iterate(const Vec& target_point, Vec& p_cs, double& diter) const 
   double diter_next = (target_point - p_cs).len();
   if (diter < diter_next && diter_next < diter + resolution)
     return false;
+
+  if (diter < diter_next && (diter_next - diter) / diter < 1e-4)
+    return false;
   if (diter < diter_next) {
     cout << endl;
     cout << target_point / AU << endl;
@@ -410,6 +415,7 @@ bool HCS::wave_iterate(const Vec& target_point, Vec& p_cs, double& diter) const 
     cout << diter / AU << " " << diter_next / AU
       << " " << vdot.phi_cs << " " << p_cs.phi() << " " << rh / AU << " " << p_cs.len() / AU << endl;
     cout << vdot.r_cs0 / AU << " " << rh / AU << " " << r1 / AU << " | " << vdot0 << " " << vdot(rh) << " " << vdot(r1) << endl;
+    vdot.pflag = true;
     p_cs.set_spherical(vdot.r_cs0, Theta_S(fabs(vdot.r_cs0), vdot.phi_cs), vdot.phi_cs);
     cout << (target_point - p_cs).len() / AU << endl;
     p_cs.set_spherical(r1, Theta_S(fabs(r1), vdot.phi_cs), vdot.phi_cs);

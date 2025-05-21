@@ -10,6 +10,7 @@ struct NDIndex {
   std::vector<std::vector<std::vector<int> > > slice;
   std::vector<std::vector<int> > slice_anti;
 
+  NDIndex() {};
   NDIndex(int dim);
 
   static inline bool is_up(int index, int ix) {

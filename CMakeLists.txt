@@ -36,7 +36,7 @@ TARGET_LINK_LIBRARIES(helprop4externel ${NLOPT_LIBRARIES})
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
 
-FOREACH(var HelProp IOTest ParticleTest)
+FOREACH(var HelProp IOTest ParticleTest gen_HCS_distance_map)
   ADD_EXECUTABLE(${var} src/${var}.cc)
   TARGET_LINK_LIBRARIES(${var} docopt helprop ${reflectcpp} ${libbson})
 ENDFOREACH()

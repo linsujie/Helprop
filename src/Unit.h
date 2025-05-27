@@ -1,11 +1,13 @@
 #ifndef UNIT_H
 #define UNIT_H
 
+#include <cmath>
+
 namespace Unit {
   const double m = 1;
   const double cm = 1e-2 * m;
   const double km = 1e3 * m;
-  const double AU = 1.496*pow(10.,11.) * m;
+  const double AU = 1.496*std::pow(10.,11.) * m;
 
   const double sec = 2.99792e8;
   const double min = 60 * sec;
@@ -20,7 +22,7 @@ namespace Unit {
 
   const double J = 1 * kg * m * m / sec / sec;
 
-  const double pi = acos(-1);
+  const double pi = std::acos(-1);
   const double deg = pi / 180;
 
   const double T = 1;

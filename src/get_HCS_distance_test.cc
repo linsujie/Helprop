@@ -116,8 +116,8 @@ int main() {
   };
 
 
-  KDInterpSide *kd1517 = read_kd("dmap15_20.bson");// gen_kd(15, 17, 0, true);
-  //KDInterpSide *kd1517 = gen_kd(15, 20, 0, true);
+  //KDInterpSide *kd1517 = read_kd("dmap15_20.bson");// gen_kd(15, 17, 0, true);
+  KDInterpSide *kd1517 = gen_kd(15, 20, 0, true);
   //KDInterpSide *kd1516 = gen_kd(15, 16, 1, true);
   kd1517->show();
   //kd1516->show();

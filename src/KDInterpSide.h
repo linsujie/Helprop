@@ -42,11 +42,11 @@ struct KDPoint {
   double val;
   int level;
   int ix_split;
-  int ncorrected;
+  int store_order;
   std::vector<KDPoint*> neighbors;
   std::vector<KDValueSide*> blocks;
 
-  KDPoint(KDInterpSide* interp_, const vec_t& x_, double val_, int level_) : interp(interp_), x(x_), val(val_), level(level_), ix_split(-1), ncorrected(0), neighbors(2 * x.size(), NULL) {}
+  KDPoint(KDInterpSide* interp_, const vec_t& x_, double val_, int level_) : interp(interp_), x(x_), val(val_), level(level_), ix_split(-1), store_order(-1), neighbors(2 * x.size(), NULL) {}
   vec_t real_x() const;
 
   bool connect(KDPoint* ref, int ix);
@@ -83,7 +83,7 @@ class KDValueSide {
 
   void linear_eval();
   void count_err();
-  bool get_ix_split();
+  bool get_ix_split(int& ix) const;
   bool breed();
   bool is_ancestor_of(const KDValueSide* v) const;
   void show() const;
@@ -95,7 +95,7 @@ class KDValueSide {
   double c, errmax;
 
   int level;
-  int ix_split, ix_split_new, order;
+  int ix_split, order;
   bool alive;
   vec_t width;
   KDValueSide* parent;
@@ -110,6 +110,7 @@ void compare(const KDValueSide& v1, const KDValueSide& v2);
 
 struct KDMapSide {
   vec_t xmid, width, tol;
+  std::vector<int> orders;
   std::vector<int> level_depths;
   std::vector<vec_t> x;
   std::vector<double> y;
@@ -138,9 +139,11 @@ class KDInterpSide {
   std::vector<int> level_depths, n_min_tol;
   int ix_split0;
   std::set<KDValueSide*> refresh_blocks;
-  std::list<KDValueSide*> active_blocks;
   tab_t tab;
   std::vector<tab_t> ref_tab;
+  std::vector<KDPoint*> points;
+  std::vector<int> orders;
+  int icurr;
   bool read_mode;
   func_t func;
   cfunc_t correction;

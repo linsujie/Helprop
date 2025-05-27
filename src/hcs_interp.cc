@@ -380,14 +380,6 @@ KDInterpSide* hcs_interp(double angle_low, double angle_up, int ix_split, bool p
       cout << "counting: " << ncorr << " " << setprecision(16) << HCS::angle /deg << " "
         << r / AU << " " << theta / deg << " " << phi / deg << " from " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg
         << " | " << res / AU << " " << p->val / AU << " " << (fabs(res) < fabs(p->val)) << " " << (target - point).len() / AU << endl;
-    if (fabs(p->val) - fabs(res) > 0.01 * AU) p->ncorrected++;
-    if (p->ncorrected > 2) {
-      cout << "multiple corrected: " << p->ncorrected << endl;
-      cout << "counting: " << setprecision(16) << HCS::angle /deg << " "
-        << r / AU << " " << theta / deg << " " << phi / deg << " from " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg
-        << " | " << res / AU << " " << p->val / AU << " " << (fabs(res) < fabs(p->val)) << " " << (target - point).len() / AU << endl;
-        exit(0);
-    }
     return res;
   };
 

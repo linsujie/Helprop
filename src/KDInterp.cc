@@ -1,5 +1,6 @@
 #include <fstream>
 #include <iostream>
+#include <filesystem>
 #include <cmath>
 
 #include "Unit.h"
@@ -450,6 +451,8 @@ bool pass_through(list<KDValueSide*>& active_blocks, const function<void(list<KD
 }
 
 KDInterp::KDInterp(const std::string& tabfile) : read_mode(true) {
+  assert(filesystem::exists(tabfile));
+
   ifstream ifs(tabfile, ios::binary);
   vector<char> bres((istreambuf_iterator<char>(ifs)), (istreambuf_iterator<char>()));
   KDMapSide result = rfl::bson::read<KDMapSide>(bres).value();

@@ -1,8 +1,12 @@
+#include <fstream>
 #include <vector>
 #include <map>
 #include <iomanip>
 #include <cassert>
 #include <iomanip>
+#include <filesystem>
+#include <regex>
+#include <mutex>
 
 #include "HCS.h"
 #include "Unit.h"
@@ -16,20 +20,41 @@ using namespace Unit;
 double HCS::angle = 45 * Unit::deg;
 HCS::HCSFORM HCS::hcsform = Jokipii_Thomas;
 const double HCS::Omega = 2*Unit::pi/27.5/Unit::day;
-KDInterp* HCS::kd_tab = NULL;
+std::vector<double> HCS::angle_axis;
+std::vector<std::string> HCS::table_names;
+std::vector<KDInterp*> HCS::tables;
 
-HCS::HCS(double Vs_eq_, bool interp_) : Vs_eq(Vs_eq_), interp(interp_) {
-  if (interp && kd_tab == NULL) refresh_table();
+HCS::HCS(double Vs_eq_, const std::string& table_dir) : Vs_eq(Vs_eq_), interp(filesystem::exists(table_dir)) {
+  if (interp && tables.empty()) init_tables(table_dir);
 }
 
-HCS::~HCS() {
-  if (kd_tab != NULL) delete kd_tab;
-}
+HCS::~HCS() {}
 
-void HCS::refresh_table() {
-  if (kd_tab != NULL) delete kd_tab;
-  resolution = 1e-7 * AU;
-  kd_tab = hcs_interp(*this);
+void HCS::init_tables(const std::string& table_dir) {
+  ifstream namelist((table_dir + "/namelist.txt").c_str());
+  string line;
+
+  double alow = -1, aup = -1, last_up = -1;
+  angle_axis.clear();
+  while (getline(namelist, line)) {
+    table_names.push_back(line);
+
+    regex r(".+/([0-9.]+)_([0-9.]+).bson");
+    smatch m;
+    assert(regex_match(line, m, r));
+
+    alow = atof(m[1].str().c_str());
+    aup = atof(m[2].str().c_str());
+
+    assert(last_up == -1 || last_up == alow);
+    last_up = aup;
+
+    angle_axis.push_back(alow * deg);
+  }
+
+  angle_axis.push_back(aup * deg);
+
+  tables.resize(table_names.size(), NULL);
 }
 
 std::string doubleToBinaryString(double value) {
@@ -185,7 +210,7 @@ double HCS::Theta_S(double r, double phi) const {
   return 0;
 }
 extern "C" double Theta_S_C(double r, double phi) {
-  return HCS(430 * km / sec, false).Theta_S(r * AU, phi);
+  return HCS(430 * km / sec, "").Theta_S(r * AU, phi);
 }
 double HCS::Phi0_S(double theta) {
   if (hcsform == Jokipii_Thomas)
@@ -691,9 +716,22 @@ double HCS::get_distance_from_point(const Vec& target, Vec& point) const {
   }
   return (target - point).len();
 }
-    
-double HCS::get_distance(double r, double theta, double phi) const {
-  if (interp) return hcs_interp_eval(r, theta, phi, kd_tab, *this);
+
+std::mutex mtx;
+double HCS::get_distance_intp(double r, double theta, double phi) {
+  int i = upper_bound(angle_axis.begin(), angle_axis.end(), HCS::angle) - angle_axis.begin() - 1;
+  assert(0 <= i && i < angle_axis.size() - 2 && "The HCS::angle should be in the range of angle_axis.");
+
+  mtx.lock();
+  if (!tables[i])
+    tables[i] = new KDInterp(table_names[i]);
+  mtx.unlock();
+
+  return hcs_interp_eval(HCS::angle, r, theta, phi, tables[i], *this);
+}
+
+double HCS::get_distance(double r, double theta, double phi) {
+  if (interp) return get_distance_intp(r, theta, phi);
 
   Vec p_cs;
   return get_distance(r, theta, phi, p_cs);

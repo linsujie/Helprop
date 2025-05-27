@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
   particle p;
   HCS::angle = 15 * deg;
   HCS::hcsform = HCS::Kota_Jokipii;
-  HCS hcs_real(p.Wind(), false);
+  HCS hcs_real(p.Wind(), "");
   hcs_real.resolution = 5e-6 * AU;
 
   auto filename = [&](double ang_low, double ang_up) -> string {
@@ -124,11 +124,8 @@ int main(int argc, char *argv[]) {
     return true;
   };
 
-  double ALOW = 15, AUP = 75, DA = 5;
-  vector<double> angs = { 15,   20,   25,   30,   35,   40,   44,   48,   52,
-    56,   59,   62,   65,   68,   70,   72,   74,   76 };
-  vector<double> res  = { 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 7e-4, 7e-4,
-    7e-4, 7e-4, 7e-4, 7e-4, 7e-4, 7e-4, 7e-4, 7e-4, 7e-4 };
+  vector<double> angs = { 5,    10,   15,   20,   25,   30,   35,   40,   44,   48,   52,   56,   59,   62,   65,   68,   70,   72,   74,   76 };
+  vector<double> res  = { 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 7e-4, 7e-4, 7e-4, 7e-4, 7e-4, 7e-4, 7e-4, 7e-4, 7e-4, 7e-4, 7e-4 };
 
   for (int i = 0; i < angs.size() - 1; i++)
     gen_kd(angs[i], angs[i + 1], 0, res[i], true);

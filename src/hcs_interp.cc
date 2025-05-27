@@ -256,42 +256,6 @@ double hcs_interp_eval(double r, double theta, double phi, KDInterp *intp, const
   double phi0 = phi + r * hcs.Omega / hcs.Vs_eq;
   phi0 = fmod(phi0, 2 * pi);
   vector<double> x = {r, theta, phi0};
-  if (pflag) {
-    auto rel_x = intp->rel_x(x);
-    auto kd = intp->kd->getkd(rel_x);
-
-    auto counting = [&](const vec_t& x) {
-      auto real_x = intp->real_x(x);
-      double dint = (*kd)(x) / AU;
-      double dreal = hcs.get_distance(real_x[0], real_x[1], real_x[2]) / AU;
-      cout << "==== " << real_x[0] / AU << " " << real_x[1] / deg << " " << real_x[2] / deg << " | " << dint << " "
-       << dreal << " " << fabs(dint - dreal) << endl;
-    };
-
-    auto xlow = kd->pmid->x;
-    xlow[1] -= kd->width[1];
-    auto xup = kd->pmid->x;
-    xup[1] += kd->width[1];
-    counting(xlow);
-    counting(xup);
-
-    cout << "!!!! " << rel_x[0] << " " << rel_x[1] << " " << rel_x[2] << endl;
-    cout << kd->parent << endl;
-    //for (auto p : kd->parent->sides)
-    //  cout << " -- " << p->x[0] << " " << p->x[1] << " " << p->x[2] << " " << p->val / AU << endl;
-    //cout << "errs: " << kd->parent->err[0] / AU << " " << kd->parent->err[1] / AU << " " << kd->parent->err[2] / AU << endl;
-    //cout << "ix_split: " << kd->parent->ix_split << endl;
-
-    for (auto p : kd->sides)
-      cout << p->x[0] << " " << p->x[1] << " " << p->x[2] << " " << p->val / AU << " | " << sum(p->x * kd->k) / AU + kd->c / AU << endl;
-    cout << "k c: " << kd->k[0] / AU << " " << kd->k[1] / AU << " " << kd->k[2] / AU << " " << kd->c / AU << endl;
-    cout << "errs: " << kd->err[0] / AU << " " << kd->err[1] / AU << " " << kd->err[2] / AU << endl;
-    cout << "ix_split: " << kd->ix_split << " " << kd->children.size() << endl;
-
-    cout << "!!!! " << r / AU << " " << theta / deg << " " << phi0 / deg << endl;
-    for (auto p : kd->sides)
-      cout << p->real_x()[0] / AU << " " << p->real_x()[1] / deg << " " << p->real_x()[2] / deg << " " << p->val / AU << endl;
-  }
   return (*intp)(x);
 }
 
@@ -310,7 +274,7 @@ void print_block_d4(const KDValueSide* kd) {
   particle p;
   HCS::angle = 15 * deg;
   HCS::hcsform = HCS::Kota_Jokipii;
-  HCS hcs(p.Wind(), false);
+  HCS hcs(p.Wind(), "");
   hcs.resolution = 1e-7 * AU;
 
   auto print_point = [&](KDPoint* p) {
@@ -341,7 +305,7 @@ KDInterp* hcs_interp(double angle_low, double angle_up, double resolution, int i
   particle p;
   HCS::angle = 15 * deg;
   HCS::hcsform = HCS::Kota_Jokipii;
-  HCS hcs(p.Wind(), false);
+  HCS hcs(p.Wind(), "");
   hcs.resolution = 1e-7 * AU;
 
   map<vec_t, Vec, vector_less_than> p_cs_tab;
@@ -454,34 +418,6 @@ double hcs_interp_eval(double angle, double r, double theta, double phi, KDInter
 
   double theta_rel = (theta - pi / 2) / angle;
   vector<double> x = {angle, r, theta_rel, phi0};
-
-  if (pflag) {
-     auto rel_x = intp->rel_x(x);
-     auto kd = intp->kd->getkd(rel_x);
- 
-     auto counting = [&](const vec_t& x) {
-       auto real_x = intp->real_x(x);
-      double r, theta, phi;
-       get_r_theta_phi(real_x, r, theta, phi, hcs);
-
-       double dint = (*kd)(x) / AU;
-       double dreal = hcs.get_distance(r, theta, phi) / AU;
-       cout << "==== " << HCS::angle / deg << " " << r / AU << " " << theta / deg << " " << phi / deg << " | " << dint << " "
-        << dreal << " " << fabs(dint - dreal) << endl;
-     };
- 
-     auto xlow = kd->pmid->x;
-     xlow[1] -= kd->width[1];
-     auto xup = kd->pmid->x;
-     xup[1] += kd->width[1];
-     counting(xlow);
-     counting(xup);
- 
-     cout << "!!!! " << rel_x[0] << " " << rel_x[1] << " " << rel_x[2] << " " << rel_x[3] << endl;
-     print_block_d4(kd);
-     cout << "k c: " << kd->k[0] / AU << " " << kd->k[1] / AU << " " << kd->k[2] / AU << " " << kd->c / AU << endl;
-     counting(rel_x);
-   }
  
   return (*intp)(x);
 }

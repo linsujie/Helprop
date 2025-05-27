@@ -79,12 +79,11 @@ double func(const vector<double>& x) {
   return sum;
 }
 
-int main() {
-
+void hcs_interp_test() {
   particle p;
   HCS::angle = 15 * deg;
   HCS::hcsform = HCS::Kota_Jokipii;
-  HCS hcs_real(p.Wind(), false);
+  HCS hcs_real(p.Wind(), "");
   hcs_real.resolution = 5e-4 * AU;
 
   auto gen_kd = [&](double ang_low, double ang_up, int ix, bool pflag) {
@@ -205,7 +204,85 @@ int main() {
 
   cout << "Omega / Vs_eq = " << hcs_real.Omega / hcs_real.Vs_eq * AU << " (AU^-1)" << endl;
 
-//  double par[3] = { 386513072760.0833, 3.13931196722899, 1.404561636981124 };
-//  cout << hcs.get_distance(par[0], par[1], par[2]) / AU << endl;
+}
+
+void HCS_get_distance_interp_test() {
+  particle p;
+  HCS::angle = 15 * deg;
+  HCS::hcsform = HCS::Kota_Jokipii;
+  HCS hcs_real(p.Wind(), "");
+  hcs_real.resolution = 5e-4 * AU;
+
+  HCS hcs_intp(p.Wind(), "dmap");
+  HCS::angle = 19 * deg;
+  hcs_intp.get_distance(1 * AU, 0, 0);
+  HCS::angle = 21 * deg;
+  hcs_intp.get_distance(1 * AU, 0, 0);
+
+  double ang = 20 * deg, angw = 4 * deg;
+  double r = 60 * AU, rw = 55 * AU;
+  double theta = 0, thetaw = 1.1;
+  double phi = 180 * deg, phiw = 180 * deg;
+
+  cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
+  const KDValueSide* pt;
+  vector<double> vpoint;
+  double maxval;
+  ofstream hist("errhist.dat");
+
+  int N = 100000;
+  vector<double> angs(N),
+    rs(N), thetas(N), phis(N), dreal(N), dint(N), err(N);
+  srand(1);
+  for (int i = 0; i < N; i++) {
+    angs[i] = double(rand()) / RAND_MAX * 2 * angw + ang - angw;
+    rs[i] = double(rand()) / RAND_MAX * 2 * rw + r - rw;
+    thetas[i] = double(rand()) / RAND_MAX * 2 * thetaw + theta - thetaw;
+    phis[i] = double(rand()) / RAND_MAX * 2 * phiw + phi - phiw;
+
+    thetas[i] = pi / 2 + thetas[i] * angs[i];
+  }
+
+  clock_t t0 = clock();
+  for (int i = 0; i < N; i++) {
+    //cout << "----- " << angs[i] / deg  << " " << rs[i] / AU << " " << thetas[i] / deg << " " << phis[i] / deg << endl;
+
+    HCS::angle = angs[i];
+    dreal[i] = hcs_real.get_distance(rs[i], thetas[i], phis[i]) / AU;
+  }
+  clock_t treal = clock();
+  for (int i = 0; i < N; i++) {
+    HCS::angle = angs[i];
+    dint[i] = hcs_intp.get_distance(rs[i], thetas[i], phis[i]) / AU;
+  }
+  clock_t tint = clock();
+
+  double err_min = -1, err_max = -1, err_med = 0;
+  long Nerr = 0;
+  int ix = -1;
+  for (int i = 0; i < N; i++) {
+    if (fabs(dreal[i]) > fabs(dint[i])) continue;
+    err[i] = fabs(dreal[i] - dint[i]);
+    if (err_min == -1 || err[i] < err_min) err_min = err[i];
+    if (err_max == -1 || err[i] > err_max) err_max = err[i];
+    err_med += err[i] * err[i];
+    if (fabs(err[i]) > 0.04) ix = i;
+    hist << err[i] << endl;
+    Nerr++;
+  }
+
+  err_med = sqrt(err_med / Nerr);
+  cout << "err: [" << err_min << ", " << err_max << "] -> " << err_med << endl;
+  cout << "angle: " << ang / deg << " +- " << angw / deg << endl;
+  cout << "real time: " << double(treal - t0) / CLOCKS_PER_SEC << "s " <<
+    "intp time: " << double(tint - treal) / CLOCKS_PER_SEC << "s" << endl;
+
+  cout << "Omega / Vs_eq = " << hcs_real.Omega / hcs_real.Vs_eq * AU << " (AU^-1)" << endl;
+
+
+}
+
+int main() {
+  HCS_get_distance_interp_test();
   return 0;
 }

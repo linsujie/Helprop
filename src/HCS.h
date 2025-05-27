@@ -10,6 +10,13 @@
 enum Polygon { Dodecahedron, Icosahedron, pseudorandom };
 
 class HCS {
+  private:
+    static std::vector<double> angle_axis;
+    static std::vector<std::string> table_names;
+    static std::vector<KDInterp*> tables;
+
+    void init_tables(const std::string& table_dir);
+
   public:
     enum HCSFORM { Jokipii_Thomas, Kota_Jokipii };
     static HCSFORM hcsform;
@@ -20,18 +27,16 @@ class HCS {
     double Vs_eq;
     double resolution;
     bool interp;
-    static KDInterp *kd_tab;
 
-    HCS(double Vs_eq_, bool interp_);
+    HCS(double Vs_eq_, const std::string& table_dir);
     ~HCS();
 
-    void refresh_table();
-
     double get_distance_old(double r, double theta, double phi, double ftol_abs) const;
-    double get_distance(double r, double theta, double phi) const;
+    double get_distance(double r, double theta, double phi);
     double get_distance(double r, double theta, double phi, Vec& p_cs) const;
     double get_distance_from_point(const Vec& target, Vec& p_cs) const;
     double get_distance_polygon(double r, double theta, double phi, double Rg2, Polygon polygon = Polygon::Dodecahedron) const;
+    double get_distance_intp(double r, double theta, double phi);
 
     double get_raw_distance(double r, double theta) const;
 

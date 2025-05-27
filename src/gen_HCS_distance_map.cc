@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
     return fname.str();
   };
 
-  auto gen_kd = [&](double ang_low, double ang_up, int ix, bool pflag) -> bool {
+  auto gen_kd = [&](double ang_low, double ang_up, int ix, double res, bool pflag) -> bool {
     filesystem::path fname = filesystem::absolute(filename(ang_low, ang_up));
     namelist << fname.c_str() << endl;
     if (filesystem::exists(fname)) {
@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
 
     cout << "generating..." << endl;
     clock_t t1 = clock();
-    KDInterpSide *kd = hcs_interp(ang_low, ang_up, ix, pflag);
+    KDInterpSide *kd = hcs_interp(ang_low, ang_up, res, ix, pflag);
     clock_t t2 = clock();
 
     cout << "generated..." << endl;
@@ -125,10 +125,13 @@ int main(int argc, char *argv[]) {
   };
 
   double ALOW = 15, AUP = 75, DA = 5;
-  vector<double> angs = {15, 20, 25, 30, 35, 40, 45, 50 };
+  vector<double> angs = { 15,   20,   25,   30,   35,   40,   44,   48,   52,
+    56,   59,   62,   65,   68,   70,   72,   74,   76 };
+  vector<double> res  = { 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 7e-4, 7e-4,
+    7e-4, 7e-4, 7e-4, 7e-4, 7e-4, 7e-4, 7e-4, 7e-4, 7e-4 };
 
   for (int i = 0; i < angs.size() - 1; i++)
-    gen_kd(angs[i], angs[i + 1], 0, true);
+    gen_kd(angs[i], angs[i + 1], 0, res[i], true);
 
   for (int i = 0; i < angs.size() - 1; i++) {
     cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;

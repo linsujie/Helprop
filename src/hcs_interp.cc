@@ -337,7 +337,7 @@ void print_block_d4(const KDValueSide* kd) {
   cout << "ix_split: " << kd->ix_split << endl;
 }
 
-KDInterpSide* hcs_interp(double angle_low, double angle_up, int ix_split, bool pflag) {
+KDInterpSide* hcs_interp(double angle_low, double angle_up, double resolution, int ix_split, bool pflag) {
   particle p;
   HCS::angle = 15 * deg;
   HCS::hcsform = HCS::Kota_Jokipii;
@@ -435,7 +435,7 @@ KDInterpSide* hcs_interp(double angle_low, double angle_up, int ix_split, bool p
   double angle_mid = (angle_low + angle_up) / 2;
   double angle_width = (angle_up - angle_low) / 2;
 
-  double tol0 = 1e-3 * AU;
+  double tol0 = resolution * AU;
   vec_t ref_width = { 20 * deg, 50 * AU, 2,  2 * pi };
   vec_t tol;
   // The tolerance is inversely proportional to the width; consequently, the reference tolerance parameter is defined as tol × width.

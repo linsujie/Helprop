@@ -5,7 +5,7 @@
 class HCS;
 KDInterpSide* hcs_interp(const HCS& hcs, bool pflag = false);
 double hcs_interp_eval(double r, double theta, double phi, KDInterpSide *intp, const HCS& hcs, bool pflag = false);
-KDInterpSide* hcs_interp(double angle_low, double angle_up, int ix_split = 0, bool pflag = false);
+KDInterpSide* hcs_interp(double angle_low, double angle_up, double resolution, int ix_split = 0, bool pflag = false);
 double hcs_interp_eval(double angle, double r, double theta, double phi, KDInterpSide *intp, const HCS& hcs, bool pflag = false);
 
 void print_block_d4(const KDValueSide* kd);

@@ -16,7 +16,7 @@ using namespace Unit;
 double HCS::angle = 45 * Unit::deg;
 HCS::HCSFORM HCS::hcsform = Jokipii_Thomas;
 const double HCS::Omega = 2*Unit::pi/27.5/Unit::day;
-KDInterpSide* HCS::kd_tab = NULL;
+KDInterp* HCS::kd_tab = NULL;
 
 HCS::HCS(double Vs_eq_, bool interp_) : Vs_eq(Vs_eq_), interp(interp_) {
   if (interp && kd_tab == NULL) refresh_table();

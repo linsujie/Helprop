@@ -14,7 +14,7 @@
 
 #include "ThreeDLookup.h"
 
-#include "KDInterpSide.h"
+#include "KDInterp.h"
 #include "hcs_interp.h"
 
 using namespace std;
@@ -90,7 +90,7 @@ int main() {
   auto gen_kd = [&](double ang_low, double ang_up, int ix, bool pflag) {
     cout << "generating..." << endl;
     clock_t t1 = clock();
-    KDInterpSide *kd = hcs_interp(ang_low, ang_up, ix, pflag);
+    KDInterp *kd = hcs_interp(ang_low, ang_up, ix, pflag);
     clock_t t2 = clock();
 
     cout << "generated..." << endl;
@@ -107,7 +107,7 @@ int main() {
   auto read_kd = [&](const string& fname) {
     cout << "generating..." << endl;
     clock_t t1 = clock();
-    KDInterpSide *kd = new KDInterpSide(fname);
+    KDInterp *kd = new KDInterp(fname);
     clock_t t2 = clock();
 
     cout << "generated..." << endl;
@@ -116,9 +116,9 @@ int main() {
   };
 
 
-  //KDInterpSide *kd1517 = read_kd("dmap15_20.bson");// gen_kd(15, 17, 0, true);
-  KDInterpSide *kd1517 = gen_kd(15, 20, 0, true);
-  //KDInterpSide *kd1516 = gen_kd(15, 16, 1, true);
+  //KDInterp *kd1517 = read_kd("dmap15_20.bson");// gen_kd(15, 17, 0, true);
+  KDInterp *kd1517 = gen_kd(15, 20, 0, true);
+  //KDInterp *kd1516 = gen_kd(15, 16, 1, true);
   kd1517->show();
   //kd1516->show();
   //kd1617->show();
@@ -134,7 +134,7 @@ int main() {
   //print_block_d4(kd1517->kd->getkd(xmid_tot));
   //print_block_d4(kd1617->kd->getkd(xmid)->parent);
 
-  KDInterpSide *kd = kd1517;
+  KDInterp *kd = kd1517;
   double ang = kd->xmid[0], angw = kd->width[0];
   double r = kd->xmid[1], rw = kd->width[1];
   double theta = kd->xmid[2], thetaw = kd->width[2];

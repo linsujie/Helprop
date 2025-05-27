@@ -20,7 +20,7 @@ class HCS {
     double Vs_eq;
     double resolution;
     bool interp;
-    static KDInterpSide *kd_tab;
+    static KDInterp *kd_tab;
 
     HCS(double Vs_eq_, bool interp_);
     ~HCS();

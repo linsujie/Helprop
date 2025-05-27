@@ -15,7 +15,7 @@
 using namespace std;
 using namespace Unit;
 
-void map_test(HCS& hcs_real, KDInterpSide* kd, int N = 10000) {
+void map_test(HCS& hcs_real, KDInterp* kd, int N = 10000) {
   vector<double> angs(N),
     rs(N), thetas(N), phis(N), dreal(N), dint(N), err(N);
 
@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
 
     cout << "generating..." << endl;
     clock_t t1 = clock();
-    KDInterpSide *kd = hcs_interp(ang_low, ang_up, res, ix, pflag);
+    KDInterp *kd = hcs_interp(ang_low, ang_up, res, ix, pflag);
     clock_t t2 = clock();
 
     cout << "generated..." << endl;
@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < angs.size() - 1; i++) {
     cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
     clock_t t1 = clock();
-    KDInterpSide *kd = new KDInterpSide(filename(angs[i], angs[i + 1]));
+    KDInterp *kd = new KDInterp(filename(angs[i], angs[i + 1]));
     clock_t t2 = clock();
     cout << "reading cost: " << (double(t2) - t1) / CLOCKS_PER_SEC << endl;
     map_test(hcs_real, kd, 100000);

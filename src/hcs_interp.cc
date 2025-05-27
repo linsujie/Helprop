@@ -180,7 +180,7 @@ bool step_shape(const std::vector<KDPoint*>& points, bool pflag = false) {
   return true;
 }
 
-KDInterpSide* hcs_interp(const HCS& hcs, bool pflag) {
+KDInterp* hcs_interp(const HCS& hcs, bool pflag) {
   map<vec_t, Vec, vector_less_than> p_cs_tab;
   Vec p_cs;
   auto dist = [&](const vector<double>& x) {
@@ -241,7 +241,7 @@ KDInterpSide* hcs_interp(const HCS& hcs, bool pflag) {
     return res;
   };
 
-  return new KDInterpSide(dist,
+  return new KDInterp(dist,
                       {60.05 * AU, pi / 2, 180.0001 * deg},
                       {60 * AU,  HCS::angle + 5 * deg, 180.0001 * deg},
                        { 5e-4 * AU, 5e-4 * AU, 5e-4 * AU }, { 2, 2, 2 }, 0, tab_corr);
@@ -252,7 +252,7 @@ double sum(const vec_t& vec) {
   for (auto v : vec) res += v;
   return res;
 }
-double hcs_interp_eval(double r, double theta, double phi, KDInterpSide *intp, const HCS& hcs, bool pflag) {
+double hcs_interp_eval(double r, double theta, double phi, KDInterp *intp, const HCS& hcs, bool pflag) {
   double phi0 = phi + r * hcs.Omega / hcs.Vs_eq;
   phi0 = fmod(phi0, 2 * pi);
   vector<double> x = {r, theta, phi0};
@@ -337,7 +337,7 @@ void print_block_d4(const KDValueSide* kd) {
   cout << "ix_split: " << kd->ix_split << endl;
 }
 
-KDInterpSide* hcs_interp(double angle_low, double angle_up, double resolution, int ix_split, bool pflag) {
+KDInterp* hcs_interp(double angle_low, double angle_up, double resolution, int ix_split, bool pflag) {
   particle p;
   HCS::angle = 15 * deg;
   HCS::hcsform = HCS::Kota_Jokipii;
@@ -441,14 +441,14 @@ KDInterpSide* hcs_interp(double angle_low, double angle_up, double resolution, i
   // The tolerance is inversely proportional to the width; consequently, the reference tolerance parameter is defined as tol × width.
   for (auto& w : ref_width) tol.push_back(tol0 * w);
 
-  return new KDInterpSide(dist,
+  return new KDInterp(dist,
                       {angle_mid * deg, 60.05 * AU, 0, 180.00001 * deg },
                       {angle_width * deg, 60 * AU,  1.1, 180.00001 * deg},
                       tol,
                       {0, 0, 0, 1}, ix_split, tab_corr);
 }
 
-double hcs_interp_eval(double angle, double r, double theta, double phi, KDInterpSide *intp, const HCS& hcs, bool pflag) {
+double hcs_interp_eval(double angle, double r, double theta, double phi, KDInterp *intp, const HCS& hcs, bool pflag) {
   double phi0 = phi + r * hcs.Omega / hcs.Vs_eq;
   phi0 = fmod(phi0, 2 * pi);
 

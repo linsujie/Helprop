@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cmath>
 
+#include "Unit.h"
 #include "rfl.hpp"
 #include "rfl/json.hpp"
 #include "rfl/bson.hpp"
@@ -9,289 +10,665 @@
 #include "KDInterp.h"
 
 using namespace std;
-extern std::set<KDPoint*> null_func(const std::vector<KDPoint*>& points) { return std::set<KDPoint*>(); }
+using namespace Unit;
 
-std::vector<vec_t> KDValue::get_bounds(const vec_t& xmin, const vec_t& xmax) const {
-  assert(xmin.size() == xmax.size());
-  assert(xmin.size() < 16 && "This version use int to implement the bounds, the maximum dimension suported is 16.");
-  vector<vec_t> bounds(index.n);
-  vector<bool> ivec(index.dim);
-  for (int i = 0; i < index.n; i++) {
-    index.int2vec(i, ivec);
-    for (int ix = 0; ix < index.dim; ix++)
-        bounds[i].push_back(ivec[ix] ? xmax[ix] : xmin[ix]);
-  }
-
-  return bounds;
+vec_t operator*(const vec_t& a, const vec_t& b) {
+  vec_t c(a.size());
+  for (int i = 0; i < a.size(); i++)
+    c[i] = a[i] * b[i];
+  return c;
 }
 
-KDPoint* KDValue::get_val(const func_t& func, const vec_t& x, int ind) {
-  auto i = tab.find(x);
-  if (i != tab.end())
-    return i->second;
+vec_t operator+(const vec_t& a, const vec_t& b) {
+  vec_t c(a.size());
+  for (int i = 0; i < a.size(); i++)
+    c[i] = a[i] + b[i];
+  return c;
+}
 
-  auto p = new KDPoint(x, func(x), level, kd_index * (index.n + 1) + ind);
-  tab.insert(pair<vec_t,KDPoint*>(x, p));
+vec_t operator-(const vec_t& a, const vec_t& b) {
+  vec_t c(a.size());
+  for (int i = 0; i < a.size(); i++)
+    c[i] = a[i] - b[i];
+  return c;
+}
+
+vec_t operator/(const vec_t& a, const vec_t& b) {
+  vec_t c(a.size());
+  for (int i = 0; i < a.size(); i++)
+    c[i] = a[i] / b[i];
+  return c;
+}
+
+ostream& operator<<(ostream& os, const vec_t& v) {
+  for (auto& x : v)
+    os << x << " ";
+  return os;
+}
+ostream& operator<<(ostream& os, const KDPoint& p) {
+  os << p.x << " | " << p.val;
+  return os;
+}
+
+void KDPoint::show_neighbors() const {
+  for (auto& n : neighbors)
+    if (n == NULL) cout << "-----------------------------------" << endl;
+    else cout << (*n) << endl;
+}
+
+bool KDPoint::connect(KDPoint* target, int ix) {
+  for (int i = 0; i < x.size(); i++)
+    if (i != ix && x[i] != target->x[i]) return false;
+
+  assert(x[ix] != target->x[ix] && "There should not be two overlaping points");
+
+  bool dir = x[ix] > target->x[ix];
+  KDPoint* bound = target->neighbors[2*ix + dir];
+  while (bound != NULL && (x[ix] - bound->x[ix]) * (x[ix] - target->x[ix]) > 0) {
+    target = bound;
+    bound = target->neighbors[2*ix + dir];
+  }
+
+  target->neighbors[2*ix + dir] = this;
+  neighbors[2*ix + !dir] = target;
+
+  neighbors[2*ix + dir] = bound;
+  if (bound) {
+    assert(x[ix] != bound->x[ix] && "There should not be two overlaping points");
+    bound->neighbors[2*ix + !dir] = this;
+  }
+  return true;
+}
+
+std::set<KDPoint*> KDPoint::correction(const cfunc_t& correct) {
+  std::set<KDPoint*> fresh_points;
+  for (int ix = 0; ix < x.size(); ix++) {
+    if (neighbors[2*ix] == NULL && neighbors[2*ix + 1] == NULL)
+      continue;
+
+    vector<KDPoint*> ps;
+    if (neighbors[2*ix] != NULL) ps.push_back(neighbors[2*ix]);
+    ps.push_back(this);
+    if (neighbors[2*ix + 1] != NULL) ps.push_back(neighbors[2*ix + 1]);
+
+    auto freshtmp = correct(ps);
+    fresh_points.insert(freshtmp.begin(), freshtmp.end());
+
+    for (auto& p : freshtmp) {
+      if (p == this) continue;
+      auto subfresh = p->correction(correct);
+      fresh_points.insert(subfresh.begin(), subfresh.end());
+    }
+  }
+
+  return fresh_points;
+}
+
+std::set<KDValueSide*> KDPoint::kd_correction(const cfunc_t& correct) {
+  std::set<KDValueSide*> res;
+  auto fresh_points = correction(correct);
+
+  for (auto& p : fresh_points)
+    for (auto& val : p->blocks)
+      res.insert(val);
+
+  return res;
+}
+
+extern std::set<KDPoint*> null_func(const std::vector<KDPoint*>& points) { return std::set<KDPoint*>(); }
+
+std::vector<vec_t> KDValueSide::get_sides(const vec_t& x, const vec_t& width) const {
+  assert(x.size() == width.size());
+
+  vector<vec_t> vp(x.size() * 2, x);
+  for (int ix = 0; ix < x.size(); ix++) {
+    vp[ix * 2][ix] = x[ix] - width[ix];
+    vp[ix * 2 + 1][ix] = x[ix] + width[ix];
+  }
+
+  return vp;
+}
+std::vector<vec_t> KDValueSide::get_corners(const vec_t& x, const vec_t& width) const {
+  assert(x.size() == width.size());
+  assert(x.size() < 16 && "This version use int to implement the bounds, the maximum dimension suported is 16.");
+
+  vec_t xmin = x - width,
+        xmax = x + width;
+
+  vector<vec_t> vp(interp->index.n);
+  vector<bool> ivec(interp->index.dim);
+  for (int i = 0; i < interp->index.n; i++) {
+    interp->index.int2vec(i, ivec);
+    for (int ix = 0; ix < interp->index.dim; ix++)
+        vp[i].push_back(ivec[ix] ? xmax[ix] : xmin[ix]);
+  }
+
+  return vp;
+}
+
+bool verify_kdvalue(KDValueSide* kd) {
+  KDValueSide* parent = kd->parent;
+  while (true) {
+    if (parent == NULL && kd->level == 0) return true;
+
+    if (parent->children.empty() || parent->ix_split < 0 || parent->children[kd->order] != kd) {
+      cout << "chain break at " << kd << " " << kd->level << " <-> " << parent << " " << parent->level << endl;
+      return false;
+    }
+
+    kd = parent;
+    parent = kd->parent;
+  }
+
+  cout << "verify_kdvalue failed" << endl;
+  return false;
+}
+
+KDValueSide* KDValueSide::front_offspring() {
+  KDValueSide *front = this,
+              *cur = this;
+  while (cur->parent != NULL) {
+    if (cur->parent->alive && !cur->alive) front = cur->parent;
+    cur = cur->parent;
+  }
+  return front;
+}
+
+KDPoint* KDValueSide::get_val(const vec_t& vx, const vector<KDPoint*>& ref_points) {
+  if (interp->read_mode) {
+    KDPoint* p = interp->points[interp->orders[interp->icurr]];
+    //cout << "reading: " << interp->icurr << " " << interp->orders[interp->icurr] << " " << vx << " " << p->x << " " << p->ix_split << endl;
+    assert(vx == p->x);
+    interp->icurr++;
+
+    return p;
+  }
+
+  auto i = interp->tab.find(vx);
+  if (i != interp->tab.end()) return i->second;
+
+  auto p = new KDPoint(interp, vx, interp->func(interp->real_x(vx)), level);
+  assert(ref_points.size() == interp->index.dim);
+  for (int ix = 0; ix < interp->index.dim; ix++)
+    if (ref_points[ix] != NULL)
+      p->connect(ref_points[ix], ix);
+
+  interp->update_tab(p);
+
+  auto kds = p->kd_correction(interp->correction);
+
+  for (auto& kd : kds) {
+    if (kd == this || !kd->complete || !kd->alive) continue;
+    interp->refresh_blocks.insert(kd);
+  }
   return p;
 };
 
-double KDValue::eval(const vec_t& x) const {
+bool KDValueSide::is_ancestor_of(const KDValueSide* v) const {
+  while (v->parent != NULL) {
+    if (v->parent == this) return true;
+    v = v->parent;
+  }
+
+  return false;
+}
+
+double KDValueSide::eval(const vec_t& x) const {
   return dot(k, x) + c;
 }
 
-double KDValue::dot(const vec_t& a, const vec_t& b) {
+double KDValueSide::dot(const vec_t& a, const vec_t& b) {
   double sum = 0;
   for (int i = 0; i < a.size(); i++)
     sum += a[i] * b[i];
   return sum;
 }
 
-void KDValue::sort_minmax(vec_t& xmin, vec_t& xmax) {
-  for (int ix = 0; ix < xmin.size(); ix++)
-    if (xmin[ix] > xmax[ix]) {
-      double tmp = xmin[ix];
-      xmin[ix] = xmax[ix];
-      xmax[ix] = tmp;
-    }
-}
-
-bool KDValue::init_exist_points() {
+bool KDValueSide::init_exist_corners() {
   if (parent == NULL) return false;
 
-  points[order] = parent->points[order]; // assign the corner of parent
-  points[index.anti[order]] = parent->points[index.n]; // assign the midpoint of parent
+  auto& slice = interp->index.slice[parent->ix_split][order];
+  for (int is = 0; is < slice.size(); is++)
+    corners[slice[is]] = parent->corners[slice[is]]; // obtain the corners from parent;
 
-  vector<bool> ivec(index.dim);
-  index.int2vec(order, ivec);
-  for (int ix = 0; ix < index.dim; ix++) {
-    auto neighbor_kd = parent->children[index.slice_anti[ix][order]];
-
-    if (neighbor_kd == NULL) continue;
-
-    for (auto ip : index.slice[ix][1 - ivec[ix]]) {
-      if (points[ip] != NULL)
-       assert(points[ip] == neighbor_kd->points[index.slice_anti[ix][ip]] && "The overlaping point should be the same.");
-      points[ip] = neighbor_kd->points[index.slice_anti[ix][ip]];
-    }
+  auto brother = parent->children[!order];
+  if (brother != NULL) {
+    auto& antislice = interp->index.slice[parent->ix_split][!order];
+    for (int is = 0; is < slice.size(); is++)
+      corners[antislice[is]] = brother->corners[slice[is]]; // obtain the corners from brother;
   }
+  return true;
+}
+
+bool KDValueSide::init_corners(const std::vector<vec_t>& vp) {
+  corners.resize(interp->index.n, NULL);
+  if (!interp->read_mode) init_exist_corners();
+
+  for (int i = 0; i < interp->index.n; i++) {
+    if (corners[i] != NULL) continue;
+
+    vector<KDPoint*> refs(interp->index.dim, NULL);
+
+    if (parent != NULL)
+      for (int ix_ref = 0; ix_ref < interp->index.dim; ix_ref++)
+        refs[ix_ref] = corners[interp->index.slice_anti[ix_ref][i]];
+
+    corners[i] = get_val(vp[i], refs);
+  }
+
+  for (auto& p : corners) p->blocks.push_back(this);
 
   return true;
 }
 
-bool KDValue::init_points(const func_t& func, const std::vector<vec_t>& bound) {
-  points.resize(bound.size() + 1, NULL);
-  //cout << "init_val: " << level << " " << order << " " << kd_index * (index.n + 1) + 0 << endl;
+bool KDValueSide::init_exist_sides() {
+  if (parent == NULL) return false;
 
-  init_exist_points();
-
-  for (int i = 0; i < bound.size(); i++) {
-    if (points[i] != NULL) continue;
-
-    points[i] = get_val(func, bound[i], i + 1);
-  }
-
-  vec_t xmid;
-  for (int ix = 0; ix < index.dim; ix++)
-     xmid.push_back((bound[0][ix] + bound[index.n - 1][ix]) / 2);
-  points[index.n] = get_val(func, xmid, 0);
-
-  for (auto& p : points)
-    p->blocks.push_back(this);
+   // assign the overlaping side
+  sides[parent->ix_split * 2 + order] = parent->sides[parent->ix_split * 2 + order];
+  sides[parent->ix_split * 2 + !order] = parent->pmid;
   return true;
 }
 
-set<KDValue*> KDValue::kd_correction(const cfunc_t& correction) {
-  auto fresh_points = correction(points);
+bool KDValueSide::init_sides(const std::vector<vec_t>& vp) {
+  sides.resize(vp.size(), NULL);
+  if (!interp->read_mode) init_exist_sides();
 
-  set<KDValue*> correction_set;
-  
-  for (auto& p : fresh_points) {
-    for (auto& k : p->blocks)
-      if (k != this)
-        correction_set.insert(k);
+  for (int i = 0; i < vp.size(); i++) {
+    if (sides[i] != NULL) continue;
+    vector<KDPoint*> refs(interp->index.dim, NULL);
+    refs[i / 2] = pmid;
+
+    sides[i] = get_val(vp[i], refs);
   }
 
-  set<KDValue*> total_correction_set = correction_set;
-  for (auto& k : correction_set) {
-    auto subset = k->kd_correction(correction);
-    total_correction_set.insert(subset.begin(), subset.end());
-  }
-
-  total_correction_set.insert(this);
-  return total_correction_set;
+  for (auto& p : sides) p->blocks.push_back(this);
+  return true;
 }
-  
-KDValue::KDValue(const func_t& func, const vec_t& xmin, const vec_t& xmax, tab_t& tab_, double tol, const NDIndex& index_, const cfunc_t& correction, int level_depth, int level_, int order_, KDValue* parent_)
- : index(index_), level(level_), order(order_), parent(parent_), tab(tab_)
+
+bool KDValueSide::init_points(const vec_t& x, const vec_t& width) {
+  pmid = get_val(x, vector<KDPoint*>(interp->index.dim, NULL));
+  //cout << x << " " << pmid->ix_split << endl;
+  pmid->blocks.push_back(this);
+
+  auto vcorner = get_corners(x, width);
+  init_corners(vcorner);
+
+  auto vside = get_sides(x, width);
+  init_sides(vside);
+
+  complete = true;
+  return true;
+}
+
+KDValueSide::KDValueSide(KDInterp* interp_, const vec_t& x_, const vec_t& width_, int level_, int order_, KDValueSide* parent_)
+ : interp(interp_), level(level_), ix_split(-1), order(order_), alive(true), width(width_), parent(parent_), complete(false)
 {
-  if (parent == NULL) {
-    kd_n = 1;
-    kd_index = 0;
-  } else {
-    kd_n = parent->kd_n * (index.n + 1);
-    kd_index = parent->kd_index + parent->kd_n * (order + 1);
-  }
+  init_points(x_, width_);
 
-  auto b = get_bounds(xmin, xmax);
-  init_points(func, b);
-  auto correction_set = kd_correction(correction);
-
-  //if (correction_set.size() > 1 && level > 10) 
-  //  cout << "refreshing number: " << correction_set.size() << endl;
   refresh_err();
-  for (auto& k : correction_set) {
-    if (k == this) continue;
-    double errold = k->err;
-    k->refresh_err();
-    k->breed(func, correction, level_depth, tol);
-    //if (parent == NULL || parent->parent == NULL) continue;
-
-    //if (distance_jump(parent->parent->points) || step_shape(parent->parent->points)) {
-    //  distance_jump(parent->parent->points, true);
-    //  step_shape(parent->parent->points, true);
-    //  for (auto& p : parent->parent->points)
-    //    cout << " +-+ " << p->x[0] << " " << p->x[1] << " " << p->x[2] << " " << p->val << endl;
-    //  exit(0);
-    //}
-  }
-
-  breed(func, correction, level_depth, tol);
 }
 
-KDValue::~KDValue() {
+KDValueSide::~KDValueSide() {
   for (auto& v : children) delete v;
 }
 
-bool KDValue::breed(const func_t& func, const cfunc_t& correction, int level_depth, double tol) {
-  if (!children.empty()) return false;
+bool KDValueSide::get_ix_split(int& ix_split_new) const {
+  if (interp->read_mode) {
+    ix_split_new = pmid->ix_split;
+    return ix_split_new != ix_split;
+  }
 
-  if (level >= level_depth
-      && err < tol * (1 << level)
-      ) return false;
+  int dim = interp->index.dim;
+  int ix0 = parent == NULL ? interp->ix_split0 : parent->ix_split + 1;
 
-  children.resize(index.n, NULL);
-  for (int i = 0; i < index.n; i++) {
-    vector<double> xmin_c = points[i]->x, xmax_c = points[index.n]->x;
-    sort_minmax(xmin_c, xmax_c);
-    children[i] = new KDValue(func, xmin_c, xmax_c, tab, tol, index, correction, level_depth, level + 1, i, this);
+  vec_t tol_local = interp->norm_tol;
+  double tmax = 0, tmin = 1e300;
+  int ix_min = -1;
+  for (int ix = 0; ix < dim; ix++) {
+    tol_local[ix] /= width[ix]; // smaller grid are allowed to have larger tolerance
+    if (tmax < tol_local[ix]) {
+      tmax = tol_local[ix];
+    }
+
+    if (tmin > tol_local[ix]) {
+      tmin = tol_local[ix];
+      ix_min = ix;
+    }
+  }
+  interp->n_min_tol[ix_min]++;
+
+  for (int ix = ix0; ix < ix0 + dim; ix++) {
+    ix_split_new = ix % dim;
+    if (!interp->level_depths.empty() && (1 << interp->level_depths[ix_split_new]) * width[ix_split_new] > 1) return ix_split_new != ix_split;
+
+    if (err[ix_split_new] > tol_local[ix_split_new]) return  ix_split_new != ix_split;
+  }
+
+  if (errmax > tmin) ix_split_new = ix0 % dim;
+  else ix_split_new = -1;
+
+  return  ix_split_new != ix_split;
+}
+
+extern bool step_shape_p3(const std::vector<KDPoint*>& points, bool pflag);
+extern bool distance_jump_side(const std::vector<KDPoint*>& points, bool pflag);
+extern bool step_shape_side(const std::vector<KDPoint*>& points, bool pflag);
+
+bool kill(set<KDValueSide*>& dead_list, KDValueSide* kd) {
+  if (!kd || !kd->alive) return false;
+
+  kd->alive = false;
+  kd->pmid->ix_split = -1;
+  dead_list.insert(kd);
+  for (auto& c : kd->children)
+    if (c && c->alive) kill(dead_list, c);
+
+  return true;
+}
+
+bool KDValueSide::breed() {
+  int ix_split_new;
+  if (!get_ix_split(ix_split_new))
+    return false; // if ix_split unchanged, no need to breed
+  assert(children.empty());
+
+  ix_split = ix_split_new;
+  pmid->ix_split = ix_split;
+  if (ix_split == -1) return false;
+
+  children.resize(2, NULL);
+  auto width_child = width;
+  width_child[ix_split] /= 2;
+  for (int i = 0; i < 2; i++) {
+    auto xtmp = pmid->x;
+    xtmp[ix_split] += width_child[ix_split] * (2 * i - 1);
+    children[i] = new KDValueSide(interp, xtmp, width_child, level + 1, i, this);
   }
   return true;
 }
 
-void KDValue::refresh_err() {
+void KDValueSide::refresh_err() {
   linear_eval();
-  err = count_err();
+  count_err();
 }
 
-void KDValue::linear_eval() {
+void KDValueSide::linear_eval() {
   double vsum = 0;
-  for (auto& p : points)
+  for (auto& p : sides)
     vsum += p->val;
 
-  k.resize(index.dim);
+  k.resize(interp->index.dim);
 
-  for (int ix = 0; ix < index.dim; ix++) {
-    double vdiff = 0;
-
-    for (auto i : index.slice[ix][1]) vdiff += points[i]->val;
-    for (auto i : index.slice[ix][0]) vdiff -= points[i]->val;
-
-    k[ix] = vdiff / (index.n / 2) / (points[index.n - 1]->x[ix] - points[0]->x[ix]);
-  }
+  for (int ix = 0; ix < interp->index.dim; ix++)
+    k[ix] = (sides[ix * 2 + 1]->val - sides[ix * 2]->val) / (2 * width[ix]);
 
   c = vsum;
-  for (auto& p : points)
+  for (auto& p : sides)
     c -= dot(k, p->x);
-  c /= points.size();
+  c /= sides.size();
 }
 
-double KDValue::count_err() const {
-  double res = 0;
-  for (auto& p : points)
-      res += (p->val - this->eval(p->x)) * (p->val - this->eval(p->x));
+void KDValueSide::count_err() {
+  err.resize(interp->index.dim);
 
-  res = sqrt(res / points.size());
-  KDPoint* midp = points[points.size() - 1];
-  return fmax(res, fabs(midp->val - this->eval(midp->x)));
+  for (int ix = 0; ix < interp->index.dim; ix++)
+    err[ix] = fabs(pmid->val - (sides[ix * 2 + 1]->val + sides[ix * 2]->val) / 2);
+
+  errmax = 0;
+  for (auto& p : corners)
+    errmax = fmax(errmax, fabs(p->val - eval(p->x)));
 }
 
-double KDValue::operator()(const vec_t& x) const {
+double KDValueSide::operator()(const vec_t& x) const {
   return getkd(x)->eval(x);
 }
 
-const KDValue* KDValue::getkd(const vec_t& x) const {
+const KDValueSide* KDValueSide::getkd(const vec_t& x) const {
   if (children.empty()) return this;
 
-  int i = 0;
-  for (int ix = 0; ix < index.dim; ix++)
-    if (x[ix] > points[index.n]->x[ix]) i |= (1 << ix);
-  return children[i]->getkd(x);
+  if (x[ix_split] < pmid->x[ix_split]) return children[0]->getkd(x);
+
+  return children[1]->getkd(x);
 }
 
-KDInterp::KDInterp(const std::string& tabfile) {
+bool pass_through(list<KDValueSide*>& active_blocks, const function<void(list<KDValueSide*>&,KDValueSide*)>& func) {
+  int level_min = 9999;
+  for (const auto& b : active_blocks)
+    level_min = fmin(level_min, b->level);
+
+  list<KDValueSide*> new_active_blocks;
+  for (auto iter = active_blocks.begin(); iter != active_blocks.end();) {
+    KDValueSide *b = *iter;
+   if (b->level == level_min) {
+      func(new_active_blocks, b);
+      iter = active_blocks.erase(iter);
+    } else iter++;
+  }
+  active_blocks.splice(active_blocks.end(), new_active_blocks);
+  return !active_blocks.empty();
+}
+
+KDInterp::KDInterp(const std::string& tabfile) : read_mode(true) {
   ifstream ifs(tabfile, ios::binary);
   vector<char> bres((istreambuf_iterator<char>(ifs)), (istreambuf_iterator<char>()));
-  KDMap result = rfl::bson::read<KDMap>(bres).value();
-  xmin = result.xmin, xmax = result.xmax;
+  KDMapSide result = rfl::bson::read<KDMapSide>(bres).value();
+  xmid = result.xmid, width = result.width;
   tol = result.tol;
-  level_depth = result.level_depth;
+  level_depths = result.level_depths;
+  orders = result.orders;
+  index = NDIndex(xmid.size());
+  ref_tab.resize(index.dim);
+  n_min_tol.resize(index.dim, 0);
 
-  assert(result.x.size() == xmin.size() && "The dimension of the table should be the same as the dimension of the function.");
+  assert(result.x.size() == xmid.size() && "The dimension of the table should be the same as the dimension of the function.");
 
+  points.reserve(result.y.size());
   vector<double> xtmp(result.x.size());
   for (int i = 0; i < result.y.size(); i++) {
     for (int ix = 0; ix < result.x.size(); ix++)
       xtmp[ix] = result.x[ix][i];
-    tab.insert(pair<vec_t,KDPoint*>(xtmp, new KDPoint(xtmp, result.y[i], result.level[i], result.index[i])));
+
+    KDPoint* p = new KDPoint(this, xtmp, result.y[i], result.level[i]);
+    p->ix_split = result.ix_split[i];
+    points.push_back(p);
   }
 
-  NDIndex index(xmin.size());
-  auto func = [&](const vec_t& x) -> double {
+  func = [&](const vec_t& x) -> double {
+    auto relx = rel_x(x);
+    cout << setprecision(16) << relx[0] << " " << relx[1] << " " << relx[2] << " " <<  relx[3] << endl;
+    auto iter = tab.upper_bound(relx);
+    cout << setprecision(16) << iter->first[0] << " " << iter->first[1] << " " << iter->first[2] << endl;
+    iter--;
+    cout << setprecision(16) << iter->first[0] << " " << iter->first[1] << " " << iter->first[2] << endl;
+
+
     assert(false && "The function should not be called when initializing with exist table.");
     return 0;
   };
-  kd = new KDValue(func, xmin, xmax, tab, tol, index, null_func, level_depth);
+
+  norm_tol = tol;
+  for (int i = 0; i < norm_tol.size(); i++)
+    norm_tol[i] /= width[i];
+
+  correction = null_func;
+  vec_t x(xmid.size(), 0),
+        w(width.size(), 1);
+  icurr = 0;
+  kd = new KDValueSide(this, x, w);
+  spring();
 }
 
-KDInterp::KDInterp(const func_t& func, const vec_t& xmin_, const vec_t& xmax_, double tol_, int level_depth_, const cfunc_t& correction) : xmin(xmin_), xmax(xmax_), tol(tol_), level_depth(level_depth_)
+KDInterp::KDInterp(const func_t& func_, const vec_t& xmid_, const vec_t& width_, const vec_t& tol_, const vector<int>& level_depths_, int ix_split0_, const cfunc_t& correction_) : xmid(xmid_), width(width_), tol(tol_), level_depths(level_depths_), ix_split0(ix_split0_), read_mode(false), func(func_), correction(correction_), index(xmid.size())
 {
-  NDIndex index(xmin.size());
-  kd = new KDValue(func, xmin, xmax, tab, tol, index, correction, level_depth);
+  assert(xmid.size() == width.size() && width.size() == tol.size());
+  if (level_depths.empty()) level_depths.resize(xmid.size(), 0);
+  ref_tab.resize(index.dim);
+
+  norm_tol = tol;
+  for (int i = 0; i < norm_tol.size(); i++)
+    norm_tol[i] /= width[i];
+  n_min_tol.resize(index.dim, 0);
+
+  vec_t x(xmid.size(), 0),
+        w(width.size(), 1);
+  kd = new KDValueSide(this, x, w);
+  spring();
+  cout << ">> KDInterp: has " << dead_children.size() << " dead children." << endl;
+
+  list<KDValueSide*> active_blocks = { kd };
+  set<KDValueSide*> end_blocks;
+
+  while (!active_blocks.empty()) {
+    pass_through(active_blocks,
+    [&](list<KDValueSide*>& new_active_blocks, KDValueSide* b) {
+      int ix_split_new;
+      if (b->get_ix_split(ix_split_new)) {
+        cout << "block: " << b << " at " << b->level << " seems change from " << b->ix_split << " to " << ix_split_new << endl;
+        if (ix_split_new == -1) end_blocks.insert(b);
+      }
+
+      for (auto& c : b->children)
+        new_active_blocks.push_back(c);
+    });
+  }
+  cout << "There are " << end_blocks.size() << " end blocks unfound." << endl;
+}
+
+bool KDInterp::spring() {
+  int ix_split_new;
+  list<KDValueSide*> active_blocks = { kd };
+
+  while (!active_blocks.empty()) {
+    pass_through(active_blocks,
+    [](list<KDValueSide*>& new_active_blocks, KDValueSide* b) {
+      if (b->breed()) // if there are new borned, adding them to the active blocks.
+        for (auto& c : b->children)
+          new_active_blocks.push_back(c);
+    });
+
+    if (read_mode) continue;
+  
+    for (auto& b : active_blocks)
+      refresh_blocks.erase(b); // to avoid the multiple dealing of the active blocks
+  
+    // To active the refreshed blocks that has changed their status and kill their origin children.
+    for (auto& b : refresh_blocks) {
+      b->refresh_err();
+      if (b->get_ix_split(ix_split_new)) {
+        active_blocks.push_back(b);
+        for (auto& c : b->children)
+          kill(dead_children, c);
+        b->children.clear();
+      }
+    }
+  
+    refresh_blocks.clear();
+  
+    // To ensure all the active blocks are alive.
+    for (auto iter = active_blocks.begin(); iter != active_blocks.end();)
+      if (!(*iter)->alive) iter = active_blocks.erase(iter);
+      else iter++;
+  }
+
+ return true;     
 }
 
 KDInterp::~KDInterp() {
   delete kd;
   for (auto& v : tab) delete v.second;
+  for (auto& v : points) delete v;
+}
+
+vec_t KDPoint::real_x() const { return interp->real_x(x); }
+vec_t KDInterp::real_x(const vec_t& x) const {
+  return xmid + x * width;
+}
+vec_t KDInterp::rel_x(const vec_t& x) const {
+  return (x - xmid) / width;
 }
 
 double KDInterp::operator()(const vec_t& x) const {
-  return (*kd)(x);
+  return (*kd)(rel_x(x));
+}
+
+bool KDInterp::update_tab(KDPoint* p) {
+  tab.insert(pair<vec_t,KDPoint*>(p->x, p));
+
+  bool update_net = false;
+  for (int ix = 0; ix < index.dim; ix++) {
+    if (p->neighbors[2*ix] != NULL || p->neighbors[2*ix+1] != NULL) continue;
+
+    vec_t list_x;
+    for (int i = 0; i < index.dim; i++)
+      if (i != ix) list_x.push_back(p->x[i]);
+    auto ilist = ref_tab[ix].find(list_x);
+
+    if (ilist == ref_tab[ix].end()) {
+      ref_tab[ix].insert(pair<vec_t, KDPoint*>(list_x, p));
+      update_net = true;
+    } else p->connect(ilist->second, ix);
+  }
+  return update_net;
+}
+
+inline void push_back(vector<int>& orders, vector<KDPoint*>& points, KDPoint* p) {
+  if (p->store_order < 0) {
+    points.push_back(p);
+    p->store_order = points.size() - 1;
+  }
+  orders.push_back(p->store_order);
+}
+
+void add_points(vector<int>& orders, vector<KDPoint*>& points, const KDValueSide* kd) {
+  push_back(orders, points, kd->pmid);
+  for (auto& p : kd->corners) push_back(orders, points, p);
+  for (auto& p : kd->sides) push_back(orders, points, p);
 }
 
 bool KDInterp::store_table(const std::string& filename, bool pflag) const {
   if (pflag)
-    cout << ">> Storing " << tab.size() << " points to " << filename << endl;
-  vector<vector<double> > x;
-  vector<double> y;
-  vector<int> level;
-  vector<int> nkd;
-  vector<long> ind;
-  vector<int> nlevels;
+    cout << ">> Storing to " << filename << endl;
 
-  x.resize(tab.begin()->first.size());
-  for (auto& i : tab) {
-    for (int ix = 0; ix < i.first.size(); ix++)
-      x[ix].push_back(i.first[ix]);
-    y.push_back(i.second->val);
-    level.push_back(i.second->level);
-    ind.push_back(i.second->index);
-    nkd.push_back(i.second->blocks.size());
+  vector<KDPoint*> points;
+  vector<int> orders;
+  points.reserve(tab.size());
+  orders.reserve(tab.size());
 
-    if (i.second->level >= nlevels.size()) nlevels.resize(i.second->level + 1, 0);
-    nlevels[i.second->level]++;
+  list<KDValueSide*> active_blocks = { kd };
+  while (!active_blocks.empty()) {
+    pass_through(active_blocks,
+    [&](list<KDValueSide*>& new_active_blocks, KDValueSide* b) {
+      add_points(orders, points, b);
+
+      for (auto& c : b->children)
+        new_active_blocks.push_back(c);
+    });
   }
 
-  const auto result = KDMap{.xmin=xmin, .xmax=xmax, .tol=tol, .level_depth=level_depth, .x = x, .y = y, .level = level, .index = ind, .nkd = nkd};
+  cout << ">> To store "  << points.size() << " of " << tab.size() << " points." << endl;
+
+  vector<vec_t> x;
+  vector<double> y;
+  vector<int> level;
+  vector<int> ix_split;
+  vector<int> nkd;
+  vector<int> nlevels;
+
+  x.resize((*points.begin())->x.size());
+  for (auto& i : points) {
+    for (int ix = 0; ix < i->x.size(); ix++)
+      x[ix].push_back(i->x[ix]);
+    y.push_back(i->val);
+    level.push_back(i->level);
+    ix_split.push_back(i->ix_split);
+    nkd.push_back(i->blocks.size());
+
+    if (i->level >= nlevels.size()) nlevels.resize(i->level + 1, 0);
+    nlevels[i->level]++;
+  }
+
+  const auto result = KDMapSide{.xmid=xmid, .width=width, .tol=tol, .orders = orders, .level_depths=level_depths, .x = x, .y = y, .level = level, .ix_split=ix_split, .nkd = nkd};
   vector<char> bres = rfl::bson::write(result);
   FILE *of = fopen(filename.c_str(), "w");
   fwrite(&bres[0], 1, bres.size(), of);
@@ -303,4 +680,49 @@ bool KDInterp::store_table(const std::string& filename, bool pflag) const {
     cout << endl;
   }
   return true;
+}
+
+void count_nlevels(const KDValueSide* kd, int l, vector<int>& nlevels) {
+  nlevels.resize(fmax(nlevels.size(), l + 1), 0);
+  nlevels[l]++;
+
+  for (auto& i : kd->children)
+    count_nlevels(i, l + 1, nlevels);
+}
+
+void KDValueSide::show() const {
+  cout << "KDValues: " << endl;
+  vector<int> nlevels;
+
+  count_nlevels(this, 0, nlevels);
+  for (auto& n : nlevels) cout << " " << n;
+  cout << endl;
+}
+
+void KDInterp::show() const {
+  kd->show();
+}
+
+void compare_one(const KDValueSide& v1, const KDValueSide& v2, const vec_t& x1, const vec_t& x2, const vec_t& w1, const vec_t& w2) {
+  if ((v1.pmid->x - x1) / w1 != (v2.pmid->x - x2) / w2) {
+    cout << "  Subblock different at: " << (v1.pmid->x - x1) / w1 << " <-> " << (v2.pmid->x - x2) / w2 << endl;
+    return;
+  }
+
+  if (v1.ix_split != v2.ix_split) {
+    cout << "ix_split different at: " << (v1.pmid->x - x1) / w1 << " | " << v1.ix_split << " <-> " << v2.ix_split << endl;
+  }
+
+  if (v1.ix_split != -1 && v2.ix_split != -1)
+    for (int i = 0; i < 2; i++)
+      compare_one(*v1.children[i], *v2.children[i], x1, x2, w1, w2);
+}
+
+void compare(const KDValueSide& v1, const KDValueSide& v2) {
+  auto& w1 = v1.width;
+  auto& x1 = v1.pmid->x;
+  auto& w2 = v2.width;
+  auto& x2 = v2.pmid->x;
+
+  compare_one(v1, v2, x1, x2, w1, w2);
 }

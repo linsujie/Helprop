@@ -148,9 +148,10 @@ void HCS::r_bound(double r, double phi, double phi0, double& rlow, double& rup) 
 }
 
 double HCS::Theta_S_Jokipii_Thomas(double phi0) {
-  static fcache theta_jokipii_thomas([](double x) { return pi / 2 - asin(sin(angle) * sin(x)); }, 1000000);
-
-  return theta_jokipii_thomas(phi0);
+  return pi / 2 - asin(sin(angle) * sin(phi0));
+//  static fcache theta_jokipii_thomas([](double x) { return pi / 2 - asin(sin(angle) * sin(x)); }, 1000000);
+//
+//  return theta_jokipii_thomas(phi0);
 }
 double HCS::Phi0_S_Jokipii_Thomas(double theta) {
   double ratio = sin(pi / 2 - theta) / sin(angle);
@@ -161,9 +162,10 @@ double HCS::Phi0_S_Jokipii_Thomas(double theta) {
 }
 
 double HCS::Theta_S_Kota_Jokipii(double phi0) {
-  static fcache theta_kota_jokipii([](double x) { return pi / 2 - atan(tan(angle) * sin(x)); }, 1000000);
-
-  return theta_kota_jokipii(phi0);
+  return pi / 2 - atan(tan(angle) * sin(phi0));
+//  static fcache theta_kota_jokipii([](double x) { return pi / 2 - atan(tan(angle) * sin(x)); }, 1000000);
+//
+//  return theta_kota_jokipii(phi0);
 }
 double HCS::Phi0_S_Kota_Jokipii(double theta) {
   double ratio = tan(pi / 2 - theta) / tan(angle);

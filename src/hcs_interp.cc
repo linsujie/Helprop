@@ -71,6 +71,21 @@ double width(const vector<double>& v) {
   return (xmax - xmin) / 2;
 }
 
+bool distance_jump_d4(const std::vector<KDPoint*>& points, bool pflag = false) {
+  auto pmin = absmin(points),
+   pmax = absmax(points);
+  double vgap = fabs(pmax->val - pmin->val);
+
+  auto xmin = pmin->real_x();
+  auto xmax = pmax->real_x();
+
+  Vec p1, p2;
+  p1.set_spherical(xmin[1], pi / 2 + xmin[2] * xmin[0], xmin[3]);
+  p2.set_spherical(xmax[1], pi / 2 + xmax[2] * xmax[0], xmax[3]);
+
+  return (p1 - p2).len() < vgap;
+}
+
 bool distance_jump(const std::vector<KDPoint*>& points, bool pflag = false) {
   auto pmin = absmin(points),
    pmax = absmax(points);
@@ -103,7 +118,7 @@ bool step_val(double v1, double v2, double v3, bool pflag = false) {
   double w = l1 * l2 > 0 ? fabs(l1 + l2) : fmax(fabs(l1), fabs(l2));
   if (pflag)
     cout << "step_val: " << v1 / AU << " " << v2 / AU << " " << v3 / AU << endl;
-  return fmin(fabs(l1), fabs(l2)) / w < 0.05;
+  return fmin(fabs(l1 + l2), fmin(fabs(l1), fabs(l2))) / w < 0.05;
 }
 
 bool step_shape_p3(const std::vector<KDPoint*>& points, bool pflag = false) {
@@ -229,7 +244,7 @@ KDInterpSide* hcs_interp(const HCS& hcs, bool pflag) {
   return new KDInterpSide(dist,
                       {60.05 * AU, pi / 2, 180.0001 * deg},
                       {60 * AU,  HCS::angle + 5 * deg, 180.0001 * deg},
-                       5e-4 * AU, { 2, 2, 2 }, tab_corr);
+                       { 5e-4 * AU, 5e-4 * AU, 5e-4 * AU }, { 2, 2, 2 }, 0, tab_corr);
 }
 
 double sum(const vec_t& vec) {
@@ -280,7 +295,49 @@ double hcs_interp_eval(double r, double theta, double phi, KDInterpSide *intp, c
   return (*intp)(x);
 }
 
-KDInterpSide* hcs_interp(bool pflag) {
+bool approx(double a, double b) {
+  return fabs(a - b) / fabs(a + b) < 1e-6;
+}
+
+void get_r_theta_phi(const vector<double>& x, double& r, double& theta, double& phi, const HCS& hcs) {
+  HCS::angle = x[0];
+  r = x[1];
+  theta = pi / 2 + x[2] * HCS::angle;
+  double phi0 = x[3];
+  phi = phi0 - r * hcs.Omega / hcs.Vs_eq;
+}
+void print_block_d4(const KDValueSide* kd) {
+  particle p;
+  HCS::angle = 15 * deg;
+  HCS::hcsform = HCS::Kota_Jokipii;
+  HCS hcs(p.Wind(), false);
+  hcs.resolution = 1e-7 * AU;
+
+  auto print_point = [&](KDPoint* p) {
+    double r, theta, phi;
+    get_r_theta_phi(p->real_x(), r, theta, phi, hcs);
+
+    cout << setprecision(16) << p->x[0] << " " << p->x[1] << " " << p->x[2] << " " << p->x[3] << " | " << HCS::angle / deg << " " << r / AU << " " << theta / deg << " " << phi / deg << " | " << p->val / AU <<  endl;
+  };
+
+  cout << "--------------sides-----------------" << endl;
+  for (auto p : kd->sides) print_point(p);
+  cout << "-------------corners----------------" << endl;
+  for (auto p : kd->corners) print_point(p);
+  cout << "---------------mid------------------" << endl;
+  print_point(kd->pmid);
+  cout << "errs: " << kd->err[0] / AU << " " << kd->err[1] / AU << " " << kd->err[2] / AU << " " << kd->err[3] / AU << " | " << kd->errmax / AU << endl;
+  cout << "wids: " << kd->width[0] << " " << kd->width[1] << " " << kd->width[2] << " " << kd->width[3] << endl;
+
+  auto tol_local = kd->interp->norm_tol;
+  for (int ix = 0; ix < kd->interp->index.dim; ix++)
+    tol_local[ix] /= kd->width[ix]; // smaller grid are allowed to have larger tolerance
+  cout << "tols: " << tol_local[0] / AU << " " << tol_local[1] / AU << " " << tol_local[2] / AU << " " << tol_local[3] / AU << endl;
+
+  cout << "ix_split: " << kd->ix_split << endl;
+}
+
+KDInterpSide* hcs_interp(double angle_low, double angle_up, int ix_split, bool pflag) {
   particle p;
   HCS::angle = 15 * deg;
   HCS::hcsform = HCS::Kota_Jokipii;
@@ -289,75 +346,150 @@ KDInterpSide* hcs_interp(bool pflag) {
 
   map<vec_t, Vec, vector_less_than> p_cs_tab;
   Vec p_cs;
-  auto dist = [&](const vector<double>& x) {
-    HCS::angle = x[0];
-    double r = x[1],
-           theta = pi / 2 + x[2] * HCS::angle,
-           phi0 = x[3];
-    double phi = phi0 - r * hcs.Omega / hcs.Vs_eq;
 
+  auto dist = [&](const vector<double>& x) -> double {
+    double r, theta, phi;
+    get_r_theta_phi(x, r, theta, phi, hcs);
     double res = hcs.get_distance(r, theta, phi, p_cs);
-    p_cs_tab.insert(pair<vec_t, Vec>(x, p_cs));
 
     static int iter = 0;
-    if (pflag && iter++ % 5000 == 0)
-      cout << "counting: " << setprecision(16) << HCS::angle / deg << " " << r / AU << " " << theta / deg << " " << phi0 / deg << " | " << res / AU << endl;
+    if (pflag && iter++ % 5000 == 0) {
+      Vec target;
+      target.set_spherical(r, theta, phi);
+      cout << "counting: " << iter << " " << setprecision(16) << HCS::angle / deg << " " << r / AU << " " << theta / deg << " " << phi / deg << " | " << res / AU << " " << (target - p_cs).len() / AU << endl;
+    }
+
+    assert(p_cs_tab.find(x) == p_cs_tab.end());
+    p_cs_tab.insert(pair<vec_t, Vec>(x, p_cs));
+
     return res;
   };
 
-  auto dist_corr = [&](const KDPoint* p, Vec& point) -> double {
-    const auto x = p->x;
-    HCS::angle = x[0];
-    double r = x[1],
-           theta = pi / 2 + x[2] * HCS::angle,
-           phi0 = x[3];
-    double phi = phi0 - r * hcs.Omega / hcs.Vs_eq;
+  auto dist_corr = [&](KDPoint* p, Vec& point, int iter) -> double {
+    const auto x = p->real_x();
+    double r, theta, phi;
+    get_r_theta_phi(x, r, theta, phi, hcs);
+
     Vec target;
     target.set_spherical(r, theta, phi);
     double res = hcs.sign(r, theta, phi) * hcs.get_distance_from_point(target, point);
 
-    static int iter = 0;
+    static int ncorr = 0;
+    ncorr++;
     if (pflag && iter++ % 5000 == 0)
+      cout << "counting: " << ncorr << " " << setprecision(16) << HCS::angle /deg << " "
+        << r / AU << " " << theta / deg << " " << phi / deg << " from " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg
+        << " | " << res / AU << " " << p->val / AU << " " << (fabs(res) < fabs(p->val)) << " " << (target - point).len() / AU << endl;
+    if (fabs(p->val) - fabs(res) > 0.01 * AU) p->ncorrected++;
+    if (p->ncorrected > 2) {
+      cout << "multiple corrected: " << p->ncorrected << endl;
       cout << "counting: " << setprecision(16) << HCS::angle /deg << " "
-        << r / AU << " " << theta / deg << " " << phi0 / deg << " from " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg
-        << " | " << res / AU << " " << (fabs(res) < fabs(p->val)) << endl;
+        << r / AU << " " << theta / deg << " " << phi / deg << " from " << point.len() / AU << " " << point.theta() / deg << " " << point.phi() / deg
+        << " | " << res / AU << " " << p->val / AU << " " << (fabs(res) < fabs(p->val)) << " " << (target - point).len() / AU << endl;
+        exit(0);
+    }
     return res;
   };
 
   auto tab_corr = [&](const vector<KDPoint*>& points) -> set<KDPoint*> {
     set<KDPoint*> res;
 
-    if (!distance_jump_side(points) && !step_shape_side(points)) return res;
+    bool dj = distance_jump_d4(points);
+    bool ss = step_shape_p3(points);
+    if (!dj && !ss) return res;
 
+    static int iter = 0;
+    iter++;
     KDPoint *pmin = absmin(points);
     KDPoint *pmax = absmax(points);
-    double avg = (pmin->val + pmax->val) / 2;
+    double avg = fabs(pmin->val + pmax->val) / 2;
+    if (pflag && iter % 5000 == 0) {
+      cout << "-----------correction-------------" << endl;
+      for (auto& p : points)
+        cout << p->x[0] << " " << p->x[1] << " " << p->x[2] << " " << p->x[3] << " | " << p->val / AU << endl;
+      for (auto& p : points) {
+        double r, theta, phi;
+        get_r_theta_phi(p->real_x(), r, theta, phi, hcs);
+        Vec target;
+        target.set_spherical(r, theta, phi);
+        auto pcs = p_cs_tab.at(p->real_x());
+
+        cout << setprecision(16) << HCS::angle / deg << " " << r / AU << " " << theta / deg << " " << phi / deg << " | " << p->val / AU << " | " << (target - pcs).len() / AU << endl;
+      }
+
+      cout << "min: " << pmin->real_x()[0] / deg << " " << pmin->real_x()[1] / AU << " " << (pi / 2 + pmin->real_x()[0] * pmin->real_x()[2]) / deg << " " << pmin->real_x()[3] / deg << " | " << pmin->val / AU << endl;
+      cout << "dj: " << dj << " ss: " << ss << endl;
+    }
+    
     for (int i = 0; i < points.size(); i++) {
       if (fabs(points[i]->val) < avg) continue;
 
-      p_cs = p_cs_tab.find(pmin->x)->second;
-      double vcorr = dist_corr(points[i], p_cs);
+      auto ip = p_cs_tab.find(pmin->real_x());
+      assert(ip != p_cs_tab.end());
+      p_cs = ip->second;
+      double vcorr = dist_corr(points[i], p_cs, iter);
 
-      if (fabs(vcorr) < fabs(points[i]->val)) {
+      if (fabs(points[i]->val) - fabs(vcorr) > 1e-5 * AU) {
         points[i]->val = vcorr;
-        p_cs_tab.find(points[i]->x)->second = p_cs;
+        auto ipcs = p_cs_tab.find(points[i]->real_x());
+        assert(ipcs != p_cs_tab.end());
+        ipcs->second = p_cs;
         res.insert(points[i]);
       }
     }
-   return res;
+    return res;
   };
 
+  double angle_mid = (angle_low + angle_up) / 2;
+  double angle_width = (angle_up - angle_low) / 2;
+
+  double tol0 = 1e-3 * AU;
+  vec_t ref_width = { 20 * deg, 50 * AU, 2,  2 * pi };
+  vec_t tol;
+  // The tolerance is inversely proportional to the width; consequently, the reference tolerance parameter is defined as tol × width.
+  for (auto& w : ref_width) tol.push_back(tol0 * w);
+
   return new KDInterpSide(dist,
-                      {10 * deg, 0.05 * AU, -1.1, 0},
-                      {40 * deg, 120 * AU,  1.1, 2 * pi + 1e-5 * deg},
-                       1e-4 * AU, {1, 1, 1}, tab_corr);
+                      {angle_mid * deg, 60.05 * AU, 0, 180.00001 * deg },
+                      {angle_width * deg, 60 * AU,  1.1, 180.00001 * deg},
+                      tol,
+                      {0, 0, 0, 1}, ix_split, tab_corr);
 }
 
-double hcs_interp_eval(double angle, double r, double theta, double phi, KDInterpSide *intp, const HCS& hcs) {
+double hcs_interp_eval(double angle, double r, double theta, double phi, KDInterpSide *intp, const HCS& hcs, bool pflag) {
   double phi0 = phi + r * hcs.Omega / hcs.Vs_eq;
   phi0 = fmod(phi0, 2 * pi);
 
   double theta_rel = (theta - pi / 2) / angle;
   vector<double> x = {angle, r, theta_rel, phi0};
+
+  if (pflag) {
+     auto rel_x = intp->rel_x(x);
+     auto kd = intp->kd->getkd(rel_x);
+ 
+     auto counting = [&](const vec_t& x) {
+       auto real_x = intp->real_x(x);
+      double r, theta, phi;
+       get_r_theta_phi(real_x, r, theta, phi, hcs);
+
+       double dint = (*kd)(x) / AU;
+       double dreal = hcs.get_distance(r, theta, phi) / AU;
+       cout << "==== " << HCS::angle / deg << " " << r / AU << " " << theta / deg << " " << phi / deg << " | " << dint << " "
+        << dreal << " " << fabs(dint - dreal) << endl;
+     };
+ 
+     auto xlow = kd->pmid->x;
+     xlow[1] -= kd->width[1];
+     auto xup = kd->pmid->x;
+     xup[1] += kd->width[1];
+     counting(xlow);
+     counting(xup);
+ 
+     cout << "!!!! " << rel_x[0] << " " << rel_x[1] << " " << rel_x[2] << " " << rel_x[3] << endl;
+     print_block_d4(kd);
+     cout << "k c: " << kd->k[0] / AU << " " << kd->k[1] / AU << " " << kd->k[2] / AU << " " << kd->c / AU << endl;
+     counting(rel_x);
+   }
+ 
   return (*intp)(x);
 }

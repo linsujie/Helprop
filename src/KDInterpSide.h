@@ -3,6 +3,7 @@
 #include<vector>
 #include<map>
 #include<set>
+#include<list>
 #include<functional>
 #include<cassert>
 #include <string>
@@ -36,15 +37,16 @@ typedef std::map<vec_t, KDPoint*, vector_less_than> tab_t;
 std::set<KDPoint*> null_func(const std::vector<KDPoint*>& points);
 
 struct KDPoint {
+  KDInterpSide* interp;
   vec_t x;
   double val;
   int level;
   int ix_split;
-  KDInterpSide* interp;
+  int ncorrected;
   std::vector<KDPoint*> neighbors;
   std::vector<KDValueSide*> blocks;
 
-  KDPoint(KDInterpSide* interp_, const vec_t& x_, double val_, int level_) : interp(interp_), x(x_), val(val_), level(level_), ix_split(-1), neighbors(2 * x.size(), NULL) {}
+  KDPoint(KDInterpSide* interp_, const vec_t& x_, double val_, int level_) : interp(interp_), x(x_), val(val_), level(level_), ix_split(-1), ncorrected(0), neighbors(2 * x.size(), NULL) {}
   vec_t real_x() const;
 
   bool connect(KDPoint* ref, int ix);
@@ -56,21 +58,20 @@ std::ostream& operator<<(std::ostream& os, const KDPoint& p);
 
 class KDValueSide {
   private:
-    std::vector<vec_t> get_corners(const vec_t& x, const vec_t& width) const;
-    std::vector<vec_t> get_sides(const vec_t& x, const vec_t& width) const;
-    KDPoint* get_val(const vec_t& x, const std::vector<KDPoint*>& ref_points);
-    double eval(const vec_t& x) const;
+  std::vector<vec_t> get_corners(const vec_t& x, const vec_t& width) const;
+  std::vector<vec_t> get_sides(const vec_t& x, const vec_t& width) const;
+  KDPoint* get_val(const vec_t& x, const std::vector<KDPoint*>& ref_points);
+  double eval(const vec_t& x) const;
 
-    static double dot(const vec_t& a, const vec_t& b);
+  static double dot(const vec_t& a, const vec_t& b);
 
-    bool init_exist_corners();
-    bool init_corners(const std::vector<vec_t>& vp);
-    bool init_exist_sides();
-    bool init_sides(const std::vector<vec_t>& vp);
-    bool init_points(const vec_t& x, const vec_t& width);
+  bool init_exist_corners();
+  bool init_corners(const std::vector<vec_t>& vp);
+  bool init_exist_sides();
+  bool init_sides(const std::vector<vec_t>& vp);
+  bool init_points(const vec_t& x, const vec_t& width);
 
-    bool breed();
-    void refresh_err();
+  KDValueSide* front_offspring();
 
   public:
 
@@ -78,9 +79,14 @@ class KDValueSide {
    int level_ = 0, int order_ = -1, KDValueSide* parent_ = NULL);
   ~KDValueSide();
 
+  void refresh_err();
+
   void linear_eval();
   void count_err();
   bool get_ix_split();
+  bool breed();
+  bool is_ancestor_of(const KDValueSide* v) const;
+  void show() const;
 
   double operator()(const vec_t& x) const;
   const KDValueSide* getkd(const vec_t& x) const;
@@ -89,7 +95,8 @@ class KDValueSide {
   double c, errmax;
 
   int level;
-  int ix_split, order;
+  int ix_split, ix_split_new, order;
+  bool alive;
   vec_t width;
   KDValueSide* parent;
   KDInterpSide* interp;
@@ -99,10 +106,10 @@ class KDValueSide {
   KDPoint* pmid;
   bool complete;
 };
+void compare(const KDValueSide& v1, const KDValueSide& v2);
 
 struct KDMapSide {
-  vec_t xmid, width;
-  double tol;
+  vec_t xmid, width, tol;
   std::vector<int> level_depths;
   std::vector<vec_t> x;
   std::vector<double> y;
@@ -115,17 +122,23 @@ class KDInterpSide {
   public:
 
   KDInterpSide(const std::string& tabfile);
-  KDInterpSide(const func_t& func, const vec_t& xmid_, const vec_t& width_, double tol_ = 0.01, const std::vector<int>& level_depths_ = {}, const cfunc_t& correction = null_func);
+  KDInterpSide(const func_t& func, const vec_t& xmid_, const vec_t& width_, const vec_t& tol_, const std::vector<int>& level_depths_ = {}, int ix_split0_ = 0, const cfunc_t& correction = null_func);
   ~KDInterpSide();
+  bool spring();
+
   double operator()(const vec_t& x) const;
   bool update_tab(KDPoint* p);
   bool store_table(const std::string& filename, bool pflag = true) const;
   vec_t real_x(const vec_t& x) const;
   vec_t rel_x(const vec_t& x) const;
+  void show() const;
 
   vec_t xmid, width;
-  double tol;
-  std::vector<int> level_depths;
+  vec_t tol, norm_tol;
+  std::vector<int> level_depths, n_min_tol;
+  int ix_split0;
+  std::set<KDValueSide*> refresh_blocks;
+  std::list<KDValueSide*> active_blocks;
   tab_t tab;
   std::vector<tab_t> ref_tab;
   bool read_mode;
@@ -133,5 +146,6 @@ class KDInterpSide {
   cfunc_t correction;
   NDIndex index;
   KDValueSide *kd;
+  std::set<KDValueSide*> dead_children;
 };
 #endif /* KDINTERPSIDE_H */

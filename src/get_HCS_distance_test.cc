@@ -80,33 +80,65 @@ double func(const vector<double>& x) {
 }
 
 int main() {
+
   particle p;
   HCS::angle = 15 * deg;
   HCS::hcsform = HCS::Kota_Jokipii;
   HCS hcs_real(p.Wind(), false);
   hcs_real.resolution = 5e-4 * AU;
-  cout << "generating..." << endl;
-  clock_t t1 = clock();
-  //HCS hcs_intp(p.Wind(), true);
-  //KDInterpSide *kd = hcs_interp(hcs_real, true);
-  KDInterpSide *kd = new KDInterpSide("dmap.bson");
-  clock_t t2 = clock();
-  cout << "generated..." << endl;
-  cout << "time: " << (double(t2) - t1) / CLOCKS_PER_SEC << endl;
-  cout << "storing..." << endl;
-  kd->store_table("dmap.bson");
-  cout << "stored..." << endl;
 
-  //cout << "generating..." << endl;
-  //KDInterp *kd = hcs_interp(hcs, true);
-  //clock_t t2 = clock();
-  //KDInterp kd(dist, {9.3035, 85.658, 92.46094}, {9.3036, 85.659, 92.46095}, 0.01, 1, "", tab_corr);
+  auto gen_kd = [&](double ang_low, double ang_up, int ix, bool pflag) {
+    cout << "generating..." << endl;
+    clock_t t1 = clock();
+    KDInterpSide *kd = hcs_interp(ang_low, ang_up, ix, pflag);
+    clock_t t2 = clock();
 
-  //KDInterp *kd = hcs_intp.kd_tab;
-  //double ang = kd->xmid[0], angw = kd->width[0];
-  double r = kd->xmid[0], rw = kd->width[0];
-  double theta = kd->xmid[1], thetaw = kd->width[1];
-  double phi = kd->xmid[2], phiw = kd->width[2];
+    cout << "generated..." << endl;
+    cout << "time: " << (double(t2) - t1) / CLOCKS_PER_SEC << endl;
+    cout << "storing..." << endl;
+    ostringstream fname;
+    fname << "dmap" << ang_low << "_" << ang_up << ".bson";
+
+    kd->store_table(fname.str());
+    cout << "stored..." << endl;
+    return kd;
+  };
+
+  auto read_kd = [&](const string& fname) {
+    cout << "generating..." << endl;
+    clock_t t1 = clock();
+    KDInterpSide *kd = new KDInterpSide(fname);
+    clock_t t2 = clock();
+
+    cout << "generated..." << endl;
+    cout << "time: " << (double(t2) - t1) / CLOCKS_PER_SEC << endl;
+    return kd;
+  };
+
+
+  KDInterpSide *kd1517 = read_kd("dmap15_20.bson");// gen_kd(15, 17, 0, true);
+  //KDInterpSide *kd1517 = gen_kd(15, 20, 0, true);
+  //KDInterpSide *kd1516 = gen_kd(15, 16, 1, true);
+  kd1517->show();
+  //kd1516->show();
+  //kd1617->show();
+
+  //kd1517->kd->children[0]->show();
+  //kd1517->kd->children[1]->show();
+
+  //compare(*(kd1517->kd->children[0]), *(kd1516->kd));
+  //compare(*(kd1517->kd->children[1]), *(kd1617->kd));
+
+  //vec_t xmid_tot = {0.5, -0.25, -0.90625, 0.25};
+  //vec_t xmid = {0, -0.25, -0.90625, 0.25};
+  //print_block_d4(kd1517->kd->getkd(xmid_tot));
+  //print_block_d4(kd1617->kd->getkd(xmid)->parent);
+
+  KDInterpSide *kd = kd1517;
+  double ang = kd->xmid[0], angw = kd->width[0];
+  double r = kd->xmid[1], rw = kd->width[1];
+  double theta = kd->xmid[2], thetaw = kd->width[2];
+  double phi = kd->xmid[3], phiw = kd->width[3];
 
   cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
   const KDValueSide* pt;
@@ -114,24 +146,29 @@ int main() {
   double maxval;
   ofstream hist("errhist.dat");
 
-  int N = 100000;
+  int N = 10000;
   vector<double> angs(N),
     rs(N), thetas(N), phis(N), dreal(N), dint(N), err(N);
   srand(1);
   for (int i = 0; i < N; i++) {
+    angs[i] = double(rand()) / RAND_MAX * 2 * angw + ang - angw;
     rs[i] = double(rand()) / RAND_MAX * 2 * rw + r - rw;
     thetas[i] = double(rand()) / RAND_MAX * 2 * thetaw + theta - thetaw;
     phis[i] = double(rand()) / RAND_MAX * 2 * phiw + phi - phiw;
+
+    thetas[i] = pi / 2 + thetas[i] * angs[i];
   }
 
   clock_t t0 = clock();
   for (int i = 0; i < N; i++) {
-    //HCS::angle = angs[i];
+    //cout << "----- " << angs[i] / deg  << " " << rs[i] / AU << " " << thetas[i] / deg << " " << phis[i] / deg << endl;
+
+    HCS::angle = angs[i];
     dreal[i] = hcs_real.get_distance(rs[i], thetas[i], phis[i]) / AU;
   }
   clock_t treal = clock();
   for (int i = 0; i < N; i++)
-    dint[i] = hcs_interp_eval(rs[i], thetas[i], phis[i], kd, hcs_real) / AU;
+    dint[i] = hcs_interp_eval(angs[i], rs[i], thetas[i], phis[i], kd, hcs_real) / AU;
   clock_t tint = clock();
 
   //for (int i = 0; i < N; i++)
@@ -139,23 +176,30 @@ int main() {
 
   double err_min = -1, err_max = -1, err_med = 0;
   long Nerr = 0;
+  int ix = -1;
   for (int i = 0; i < N; i++) {
     if (fabs(dreal[i]) > fabs(dint[i])) continue;
     err[i] = fabs(dreal[i] - dint[i]);
     if (err_min == -1 || err[i] < err_min) err_min = err[i];
     if (err_max == -1 || err[i] > err_max) err_max = err[i];
     err_med += err[i] * err[i];
-    //if (err[i] > 1) cout << i << endl;
+    if (fabs(err[i]) > 0.04) ix = i;
     hist << err[i] << endl;
     Nerr++;
   }
-  //int ix = 998;
-  //double vint = hcs_interp_eval(rs[ix], thetas[ix], phis[ix], kd, hcs_real, true);
-  //double vreal = hcs_real.get_distance(rs[ix], thetas[ix], phis[ix]);
-  //cout << "vint: " << vint / AU << " vreal: " << vreal / AU << endl;
 
+  if (ix != -1) {
+    double vint = hcs_interp_eval(angs[ix], rs[ix], thetas[ix], phis[ix], kd, hcs_real, true);
+    HCS::angle = angs[ix];
+    double vreal = hcs_real.get_distance(rs[ix], thetas[ix], phis[ix]);
+    cout << "vint: " << vint / AU << " vreal: " << vreal / AU << endl;
+  }
+
+  cout << "n_min_tol:";
+  for (auto& v : kd->n_min_tol) cout << " " << v; cout << endl;
   err_med = sqrt(err_med / Nerr);
   cout << "err: [" << err_min << ", " << err_max << "] -> " << err_med << endl;
+  cout << "angle: " << ang / deg << " +- " << angw / deg << endl;
   cout << "real time: " << double(treal - t0) / CLOCKS_PER_SEC << "s " <<
     "intp time: " << double(tint - treal) / CLOCKS_PER_SEC << "s" << endl;
 

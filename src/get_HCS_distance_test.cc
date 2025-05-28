@@ -12,8 +12,6 @@
 #include "rfl/json.hpp"
 #include "rfl/bson.hpp"
 
-#include "ThreeDLookup.h"
-
 #include "KDInterp.h"
 #include "hcs_interp.h"
 

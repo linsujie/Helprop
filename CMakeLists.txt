@@ -41,5 +41,5 @@ FOREACH(var HelProp IOTest ParticleTest gen_HCS_distance_map)
   TARGET_LINK_LIBRARIES(${var} docopt helprop ${reflectcpp} ${libbson})
 ENDFOREACH()
 
-ADD_EXECUTABLE(get_HCS_distance_test src/get_HCS_distance_test.cc src/particle.cc src/IO.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc src/HCS.cc src/ThreeDLookup.cc src/NDIndex.cc src/KDInterp.cc src/hcs_interp.cc)
+ADD_EXECUTABLE(get_HCS_distance_test src/get_HCS_distance_test.cc src/particle.cc src/IO.cc src/fcache.cc src/newton_solver.cc src/root_finding.cc src/HCS.cc src/NDIndex.cc src/KDInterp.cc src/hcs_interp.cc)
 TARGET_LINK_LIBRARIES(get_HCS_distance_test docopt ${NLOPT_LIBRARIES} ${reflectcpp} ${libbson})

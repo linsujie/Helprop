@@ -1,4 +1,5 @@
 #include "IO.h"
+#include "Unit.h"
 #include "rfl.hpp"
 #include "rfl/json.hpp"
 #include "rfl/bson.hpp"
@@ -12,6 +13,30 @@
 #include <iomanip>
 
 using namespace std;
+
+vector<double> IO::split_unit(const vector<double>& vec, const double unit) {
+  vector<double> res = vec;
+  for (auto& x : res) x /= unit;
+  return res;
+}
+vector<double> IO::assign_unit(const vector<double>& vec, const double unit) {
+  vector<double> res = vec;
+  for (auto& x : res) x *= unit;
+  return res;
+}
+vector<vector<double> > IO::split_unit(const vector<vector<double> >& vec, const double unit) {
+  vector<vector<double> > res = vec;
+  for (auto& r : res)
+    for (auto& x : r) x /= unit;
+  return res;
+}
+vector<vector<double> > IO::assign_unit(const vector<vector<double> >& vec, const double unit) {
+  vector<vector<double> > res = vec;
+  for (auto& r : res)
+    for (auto& x : r) x *= unit;
+  return res;
+}
+
 
 void IO::set_params(const std::map<std::string, docopt::value>& args) {
   auto fargs = [&](const std::string& key) -> double {
@@ -64,16 +89,21 @@ bool IO_TXT::readspec(const std::string& filename, std::vector<double>& E, std::
   }
 
   spectrumFile.close();
+  E = assign_unit(E, eunit);
+  F = assign_unit(F, 1.0 / eunit);
   return true;
 }
 
-bool IO_TXT::writespec(const std::string& filename, const std::vector<double>& E, const std::vector<double>& F, WRITEMODE mode) const {
+bool IO_TXT::writespec(const std::string& filename, const std::vector<double>& E_, const std::vector<double>& F_, WRITEMODE mode) const {
   ofstream of(filename, mode == APPEND ? ios::app : ios::trunc);
 
-  if (E.size() != F.size()) {
+  if (E_.size() != F_.size()) {
     cerr << "IO_TXT::writespec: E and F have different sizes" << endl;
     return false;
   }
+
+  auto E = split_unit(E_, eunit);
+  auto F = split_unit(F_, 1.0 / eunit);
 
   of << "# E F" << endl;
   of << setprecision(8) << setiosflags(ios::scientific);
@@ -123,14 +153,21 @@ bool IO_TXT::readmatrix(const std::string& filename, std::vector<double>& ETOA, 
   }
 
   data.close();
+  ETOA = assign_unit(ETOA, eunit);
+  ELIS = assign_unit(ELIS, eunit);
+  //M = assign_unit(M, 1.0 / eunit / eunit / eunit);
   return true;
 }
 
-bool IO_TXT::writematrix(const std::string& filename, const std::vector<double>& ETOA, const std::vector<double>& ELIS, const std::vector< std::vector<double> >& M, WRITEMODE mode) const {
-  if (ETOA.size() != M.size()) {
+bool IO_TXT::writematrix(const std::string& filename, const std::vector<double>& ETOA_, const std::vector<double>& ELIS_, const std::vector< std::vector<double> >& M_, WRITEMODE mode) const {
+  if (ETOA_.size() != M_.size()) {
     cerr << "IO_TXT::writematrix: ETOA and M have different sizes" << endl;
     return false;
   }
+
+  auto ETOA = split_unit(ETOA_, eunit);
+  auto ELIS = split_unit(ELIS_, eunit);
+  auto M = M_;// split_unit(M_, 1.0 / eunit / eunit / eunit);
 
   ofstream of(filename, mode == APPEND ? ios::app : ios::trunc);
   of << setprecision(8) << setiosflags(ios::scientific);
@@ -220,15 +257,20 @@ bool IO_CSV::readspec(const std::string& filename, std::vector<double>& E, std::
     F.push_back(vals[1]);
   }
 
+  E = assign_unit(E, eunit);
+  F = assign_unit(F, 1.0 / eunit);
   return true;
 }
 
 
-bool IO_CSV::writespec(const std::string& filename, const std::vector<double>& E, const std::vector<double>& F, WRITEMODE mode) const {
-  if (E.size() != F.size()) {
+bool IO_CSV::writespec(const std::string& filename, const std::vector<double>& E_, const std::vector<double>& F_, WRITEMODE mode) const {
+  if (E_.size() != F_.size()) {
     cerr << "IO_CSV::writespec: E and F have different sizes" << endl;
     return false;
   }
+
+  auto E = split_unit(E_, eunit);
+  auto F = split_unit(F_, 1.0 / eunit);
 
   ofstream of(filename, mode == APPEND ? ios::app : ios::trunc);
   of << "#E,F" << endl;
@@ -277,14 +319,22 @@ bool IO_CSV::readmatrix(const std::string& filename, std::vector<double>& ETOA, 
   }
 
   data.close();
+
+  ETOA = assign_unit(ETOA, eunit);
+  ELIS = assign_unit(ELIS, eunit);
+  //M = assign_unit(M, 1.0 / eunit / eunit / eunit);
   return true;
 }
 
-bool IO_CSV::writematrix(const std::string& filename, const std::vector<double>& ETOA, const std::vector<double>& ELIS, const std::vector< std::vector<double> >& M, WRITEMODE mode) const {
-  if (ETOA.size() != M.size()) {
+bool IO_CSV::writematrix(const std::string& filename, const std::vector<double>& ETOA_, const std::vector<double>& ELIS_, const std::vector< std::vector<double> >& M_, WRITEMODE mode) const {
+  if (ETOA_.size() != M_.size()) {
     cerr << "IO_CSV::writematrix: ETOA and M have different sizes" << endl;
     return false;
   }
+
+  auto ETOA = split_unit(ETOA_, eunit);
+  auto ELIS = split_unit(ELIS_, eunit);
+  auto M = M_;// split_unit(M_, 1.0 / eunit / eunit / eunit);
 
   ofstream of(filename, mode == APPEND ? ios::app : ios::trunc);
   of << setprecision(8) << setiosflags(ios::scientific);
@@ -353,14 +403,19 @@ bool IO_BSON::readspec(const std::string& filename, std::vector<double>& E, std:
   elis = res.elis;
   params = res.params;
 
+  E = assign_unit(E, eunit);
+  F = assign_unit(F, 1.0 / eunit);
   return true;
 }
 
-bool IO_BSON::writespec(const std::string& filename, const std::vector<double>& E, const std::vector<double>& F, WRITEMODE mode) const {
-  if (E.size() != F.size()) {
+bool IO_BSON::writespec(const std::string& filename, const std::vector<double>& E_, const std::vector<double>& F_, WRITEMODE mode) const {
+  if (E_.size() != F_.size()) {
     cerr << "IO_BSON::writespec: E and F have different sizes" << endl;
     return false;
   }
+
+  auto E = split_unit(E_, eunit);
+  auto F = split_unit(F_, 1.0 / eunit);
 
   const auto spec = SpecBson{.params= params, .E = E, .F = F, .seed = seed, .etoa = etoa, .elis = elis};
   vector<char> bspec = rfl::bson::write(spec);
@@ -390,14 +445,21 @@ bool IO_BSON::readmatrix(const std::string& filename, std::vector<double>& ETOA,
   M = res.M;
   params = res.params;
 
+  ETOA = assign_unit(ETOA, eunit);
+  ELIS = assign_unit(ELIS, eunit);
+  //M = assign_unit(M, 1.0 / eunit / eunit / eunit);
   return true;
 }
 
-bool IO_BSON::writematrix(const std::string& filename, const std::vector<double>& ETOA, const std::vector<double>& ELIS, const std::vector< std::vector<double> >& M, WRITEMODE mode) const {
-  if (ETOA.size() != M.size()) {
+bool IO_BSON::writematrix(const std::string& filename, const std::vector<double>& ETOA_, const std::vector<double>& ELIS_, const std::vector< std::vector<double> >& M_, WRITEMODE mode) const {
+  if (ETOA_.size() != M_.size()) {
     cerr << "IO_BSON::writematrix: ETOA and M have different sizes" << endl;
     return false;
   }
+
+  auto ETOA = split_unit(ETOA_, eunit);
+  auto ELIS = split_unit(ELIS_, eunit);
+  auto M = M_;// split_unit(M_, 1.0 / eunit / eunit / eunit);
 
   const auto matrix = MatrixBson{.params=params, .seed = seed, .ETOA = ETOA, .ELIS = ELIS, .etoa = etoa, .elis = elis, .M = M};
   vector<char> bmatrix = rfl::bson::write(matrix);

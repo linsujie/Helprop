@@ -39,6 +39,9 @@ namespace Unit {
   const double e = 1.602e-19 * C;
   const double V = J / C;
   const double epsilon_0 = 8.854e-12 * C / (V * m); //permittivity of free space in F/m
+
+  const double GV = GeV / e;
+  const double MV = MeV / e;
 };
 
 #endif /* UNIT_H */

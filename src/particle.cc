@@ -161,10 +161,10 @@ void particle::step(const string& logname) {
   };
 
   while (r<boundary) {//theta<pi/2
-    double E = Ek + mp;
-    double p2 = E * E - mp * mp;
+    double E = Ek + A * mp;
+    double p2 = E * E - A * mp * A * mp;
     M_p = sqrt(p2);
-    rigidity = A / (Z * e) * M_p;
+    rigidity = M_p / (Z * e);
     V_p = M_p / E * c_speed;
     Vs = Wind();
 
@@ -192,13 +192,13 @@ void particle::step(const string& logname) {
     double gamma = r * HCS::Omega * sin(theta) / Vs;
 
     //cout << M_p << " " << V_p << " " << r / AU << " " << B0 << " " << Bn << " " << Z << " " << e << endl;
-    drift = 2 * A * M_p * V_p * r / (3 * Z * e * Bn) * heaviside * polarity;
+    drift = 2 * M_p * V_p * r / (3 * Z * e * Bn) * heaviside * polarity;
     Vdr_gc = drift / pow(1 + gamma * gamma, 2.) * (- gamma ) / tan(theta);
     Vdt_gc = drift / pow(1 + gamma * gamma, 2.) *  (2 + gamma * gamma) * gamma;
     Vdp_gc = drift / pow(1 + gamma * gamma, 2.) * gamma * gamma / tan(theta);
 
     Vns = 0.;
-    Rg = fabs(A * M_p / (B * Z * e * c_speed));
+    Rg = fabs(rigidity / (B * c_speed));
     d_HCS = hcs.get_raw_distance(r, theta);
     if (d_HCS < 2 * Rg) {
       hcs.resolution = 0.001 * Rg;
@@ -288,6 +288,11 @@ void particle::step(const string& logname) {
       break;
     }
   }
+
+  double E = Ek + A * mp;
+  double p2 = E * E - A * mp * A * mp;
+  M_p = sqrt(p2);
+  rigidity = M_p / (Z * e);
 
   if (logfile) { // Write the final state
     write_log();

@@ -3,7 +3,6 @@
 #include <filesystem>
 #include <cmath>
 
-#include "Unit.h"
 #include "rfl.hpp"
 #include "rfl/json.hpp"
 #include "rfl/bson.hpp"
@@ -11,7 +10,6 @@
 #include "KDInterp.h"
 
 using namespace std;
-using namespace Unit;
 
 vec_t operator*(const vec_t& a, const vec_t& b) {
   vec_t c(a.size());

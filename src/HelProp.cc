@@ -14,6 +14,7 @@
 #include "IO.h"
 
 using namespace std;
+using namespace Unit;
 mutex mtx;
 
 vector<string> split(const string& str, const string& splitor)
@@ -33,8 +34,8 @@ vector<string> split(const string& str, const string& splitor)
 
 vector<double> get_ekin(const string& ekin_opt) {
     vector<string> eks = split(ekin_opt, ",");
-    double ekmin = stod(eks[0]);
-    double ekmax = stod(eks[1]);
+    double ekmin = stod(eks[0]) * GeV;
+    double ekmax = stod(eks[1]) * GeV;
     int n = stoi(eks[2]);
 
     vector<double> ekin;
@@ -109,38 +110,46 @@ vector<particle> simulating(const particle& template_particle, int number, int t
   return Particle;
 }
 
-const double m_proton = 0.938272;
-vector<double> count_GreenFunction(const vector<particle>& Particle, const vector<double>& ekin, int A = 1) {
-  vector<double> momentum;
-  for (const auto& e : ekin)
-    momentum.push_back(sqrt(e * (e + 2. * A * m_proton)));
+const double m_proton = 0.938272 * GeV;
+double ekin2p(double ekin, int A) { // ekin/nuc -> momentum
+  return sqrt(ekin * (ekin + 2. * m_proton)) * A;
+}
+double p2ekin(double p, int A) { // momentum -> ekin/nuc
+  return sqrt(p / A * p / A + m_proton * m_proton) - m_proton;
+}
+inline vector<double> get_bound(const vector<double>& x) {
+  vector<double> bound;
+  int n = x.size();
+  bound.push_back(x[0]*sqrt(x[0]/x[1]));
+  for (int i = 0; i < n-1; i++)
+    bound.push_back(sqrt(x[i] * x[i + 1]));
+  bound.push_back(x[n-1]*sqrt(x[n-1]/x[n-2]));
 
+  return bound;
+}
+
+// counting the Green function matrix, the detail could be checked in the file modulation_matrix.pdf
+vector<double> count_GreenFunction(const vector<particle>& Particle, const vector<double>& ekin) {
   assert(ekin.size() >= 2 && "At least two energy grids are required in the generation of Green Function matrix.");
-  vector<double> ekin_bound;
-  ekin_bound.push_back(ekin[0]*sqrt(ekin[0]/ekin[1]));
-  for (int i = 0; i < ekin.size()-1; i++)
-    ekin_bound.push_back(sqrt(ekin[i] * ekin[i + 1]));
-  ekin_bound.push_back(ekin[ekin.size()-1]*sqrt(ekin[ekin.size()-1]/ekin[ekin.size()-2]));
+
+  vector<double> bound = get_bound(ekin);
 
   vector<double> bin;
   bin.resize(ekin.size());
 
   int number = Particle.size();
   for (const auto& p : Particle) {
-    int ibin = upper_bound(ekin_bound.begin(), ekin_bound.end(), p.Ek / Unit::GeV) - ekin_bound.begin();
+    int ibin = upper_bound(bound.begin(), bound.end(), p.Ek / p.A) - bound.begin();
 
     if (0 < ibin && ibin < bin.size() + 1)
       bin[ibin - 1] += 1;
   }
 
   double sum = 0;
-  for (int i = 0; i < bin.size(); i++) {
-    bin[i] /= momentum[i] * momentum[i];
-    sum += bin[i];
-  }
+  for (int i = 0; i < bin.size(); i++) sum += bin[i];
   for (auto& v : bin) v /= sum;
 
-  return bin;
+  return bin; // the returned matrix counting the probability ~ \int G(p, p') dp'
 }
 
 static char USAGE[] = R"(
@@ -184,6 +193,7 @@ int main(int argc, char* argv[]) {
   else if (args.at("--iotype").asString() == "BSON")
     io = new IO_BSON();
 
+  io->eunit = GeV;
   IO::WRITEMODE write_mode = args.at("--append").asBool() ? IO::APPEND : IO::RECREATE;
 
   io->set_params(args);
@@ -212,11 +222,12 @@ int main(int argc, char* argv[]) {
   int th_num = args.at("--nthread").asLong();
   bool fix_seed = bool(args.at("--seed"));
   long seed = fix_seed ? args.at("--seed").asLong() : 0;
-  int A = 1;
+  int A = args.at("--A").asLong();
+  int Z = args.at("--Z").asLong();
   particle one(args);
 
   for (int i = 0; i < ETOA.size(); i++) {
-    one.Ek = ETOA[i] * Unit::GeV;
+    one.Ek = ETOA[i] * A;
     one.fix_seed = fix_seed;
     one.seed = seed + i * number;
 
@@ -225,13 +236,13 @@ int main(int argc, char* argv[]) {
     auto Particle = simulating(one, number, th_num, bool(args.at("--logname")) ? args.at("--logname").asString() : "");
     cout << "time costed per particle: " << (clock() - start) / (double)CLOCKS_PER_SEC * 1e3 / number << "ms" << endl;
 
-    auto bin = count_GreenFunction(Particle, ELIS, A);
+    auto bin = count_GreenFunction(Particle, ELIS);
     weight.push_back(bin);
     if (args.at("--sample").asBool())
       for (const auto& p : Particle) {
         io->seed.push_back(p.seed);
-        io->etoa.push_back(one.Ek / Unit::GeV);
-        io->elis.push_back(p.Ek / Unit::GeV);
+        io->etoa.push_back(one.Ek / GeV);
+        io->elis.push_back(p.Ek / GeV);
       }
   }
 
@@ -240,23 +251,22 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
+  vector<double> pLIS, pTOA;
+  for (auto E : ELIS) pLIS.push_back(ekin2p(E, A));
+  for (auto E : ETOA) pTOA.push_back(ekin2p(E, A));
+
   LogInterp f_lis(EIN, flux);
   vector<double> FLIS;
   for (const auto& e : ELIS)
     FLIS.push_back(f_lis(e));
 
-  vector<double> mLIS, mTOA;
-  for (const auto& e : ETOA)
-    mTOA.push_back(sqrt(e * (e + 2. * A * m_proton)));
-  for (const auto& e : ELIS)
-    mLIS.push_back(sqrt(e * (e + 2. * A * m_proton)));
-
   vector<double> Ospec;
   for (int itoa = 0; itoa < weight.size(); itoa++) {
     double value = 0;
-    for (int ilis = 0; ilis < ELIS.size(); ilis++) {
-      value += weight[itoa][ilis] * FLIS[ilis] / mLIS[ilis] / mLIS[ilis] * mTOA[itoa] * mTOA[itoa];
-    }
+
+    for (int ilis = 0; ilis < ELIS.size(); ilis++)
+      value += weight[itoa][ilis] * FLIS[ilis] / pLIS[ilis] / pLIS[ilis] * pTOA[itoa] * pTOA[itoa];
+
     Ospec.push_back(value);
   }
 

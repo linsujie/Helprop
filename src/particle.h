@@ -39,8 +39,8 @@ class particle {
 
     double r, theta, phi;                              // particle position
     double r10 = 0;
-    double Ek;                                                  //kinetic energy / nucleon
-    double M_p;                                                 // momentum / nucleon
+    double Ek;                                                  // total kinetic energy
+    double M_p;                                                 // total momentum
     double V_p;                                                 // velocity of praticle
 
     HCS hcs;

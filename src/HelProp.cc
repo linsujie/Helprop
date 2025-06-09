@@ -72,13 +72,15 @@ vector<particle> simulating(const particle& template_particle, int number, int t
       if (Particle[ip_local].fix_seed)
         Particle[ip_local].seed += ip_local;
 
-      cout << ">>particle " << ip_local << " seed " << Particle[ip_local].seed << ": "
-        << " Ek " << template_particle.Ek / Unit::GeV
-        << "GeV -> ";
+      if (ip_local % 1000 == 0)
+        cerr << ">>particle " << ip_local << " seed " << Particle[ip_local].seed << ": "
+          << " Ek " << template_particle.Ek / Unit::GeV
+          << "GeV -> ";
       Particle[ip_local].step(logname);
-      cout << Particle[ip_local].Ek / Unit::GeV << "GeV"
-        << (Particle[ip_local].available ? " success" : " fail")
-        << endl;
+      if (ip_local % 1000 == 0)
+        cerr << Particle[ip_local].Ek / Unit::GeV << "GeV"
+          << (Particle[ip_local].available ? " success" : " fail")
+          << endl;
       assert(Particle[ip_local].available && "The particle is supposed to energetic enough to get out of the solar center.");
     }
   };
@@ -100,11 +102,12 @@ vector<particle> simulating(const particle& template_particle, int number, int t
       if (Particle[i].fix_seed)
         Particle[i].seed += i;
 
-      cerr << ">>particle " << i << " seed " << Particle[i].seed << ": "
-        << " Ek " << template_particle.Ek / Unit::GeV
-        << "GeV -> ";
+      if (i % 1000 == 0)
+        cerr << ">>particle " << i << " seed " << Particle[i].seed << ": " << " Ek " << template_particle.Ek / Unit::GeV
+          << "GeV -> ";
       Particle[i].step(logname);
-      cerr << Particle[i].Ek / Unit::GeV << "GeV" << endl;
+      if (i % 1000 == 0)
+        cerr << Particle[i].Ek / Unit::GeV << "GeV" << endl;
     }
   }
   return Particle;

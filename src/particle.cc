@@ -64,7 +64,7 @@ double particle::B_p(double r, double theta, double heaviside) const {
 }
 
 double particle::Kpara0() const { // parallel diffusion coefficient at the earth
-  return D0 * V_p * pow(rigidity / rigidity0, indexA);
+  return D0 * V_p * pow(fabs(rigidity) / rigidity0, indexA);
 }
 
 double f_perp_t(double theta) {
@@ -144,14 +144,14 @@ void particle::step(const string& logname) {
   }
 
   if (logfile)
-     *logfile << "t[month],nflect,r[AU],theta[rad],phi[rad],Ek[GeV],dEk[GeV],Vs[km/s],drift[km/s],Vdr_gc[km/s],Vdt_gc[km/s],Vdp_gc[km/s],Vdr_HCS[km/s],Vdt_HCS[km/s],Vdp_HCS[km/s],d_HCS[AU],Rg[AU],dwr[AU],dwt[rad],dwp[rad],dr[AU],dtheta[rad],dphi[rad]" << endl;
+     *logfile << "t[month],nflect,r[AU],theta[rad],phi[rad],Ek[GeV],dEk[GeV],Vs[km/s],heav,drift[km/s],Vdr_gc[km/s],Vdt_gc[km/s],Vdp_gc[km/s],Vdr_HCS[km/s],Vdt_HCS[km/s],Vdp_HCS[km/s],d_HCS[AU],Rg[AU],dwr[AU],dwt[rad],dwp[rad],dr[AU],dtheta[rad],dphi[rad]" << endl;
   auto write_log = [&]() {
     if (logfile)
       *logfile << Dt/day/30.
         << "," << nflect
         << "," << r/AU << "," << theta << "," << phi << "," << Ek/GeV << "," << dEk/GeV
         << "," << Vs / (km/sec)
-        << "," << drift/(km/sec)
+        << "," << heaviside << "," << drift/(km/sec)
         << "," << Vdr_gc/(km/sec) << "," << Vdt_gc/(km/sec) << "," << Vdp_gc/(km/sec)
         << "," << Vdr_HCS/(km/sec) << "," << Vdt_HCS/(km/sec) << "," << Vdp_HCS/(km/sec)
         << "," << d_HCS/AU << "," << Rg/AU
@@ -204,7 +204,7 @@ void particle::step(const string& logname) {
       hcs.resolution = 0.001 * Rg;
       d_HCS = fabs(hcs.get_distance(r, theta, phi));
       if(d_HCS < 2*Rg)
-        Vns = (0.457 - 0.412 * d_HCS / Rg + 0.0915 * d_HCS * d_HCS / Rg / Rg) * V_p * polarity * A_drift;//
+        Vns = (0.457 - 0.412 * d_HCS / Rg + 0.0915 * d_HCS * d_HCS / Rg / Rg) * V_p * polarity * (Z > 0 ? 1 : -1) * A_drift;//
   
       double Vrx = r * sin(theta_s) * HCS::Omega;
       double Vtx = - tan(HCS::angle) * sin(theta_s) * cos(hcs.phi0(r, phi)) * (hcs.Vs_eq * hcs.Vs_eq + Vrx * Vrx) / hcs.Vs_eq;

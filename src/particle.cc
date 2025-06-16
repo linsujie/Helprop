@@ -160,7 +160,13 @@ void particle::step(const string& logname) {
         << endl;
   };
 
+  double rmax = r;
+  double outward_bound = 2 * rmax;
+  bool force_outward = false;
   while (r<boundary) {//theta<pi/2
+    if (r > rmax) rmax = r;
+    if (r > outward_bound) force_outward = false;
+
     double E = Ek + A * mp;
     double p2 = E * E - A * mp * A * mp;
     M_p = sqrt(p2);
@@ -225,6 +231,8 @@ void particle::step(const string& logname) {
     dwt = dist(gen) * sqrt(dt);
     dwp = dist(gen) * sqrt(dt);
 
+    if (force_outward) dwr = fabs(dwr);
+
     coord_trans(krr, ktt, kpp, krp, dwr, dwt, dwp);
     //if (r < 4 * AU) dwr = fabs(dwr);
 
@@ -284,8 +292,9 @@ void particle::step(const string& logname) {
     if (phi < 0 || 2 * pi < phi)
       phi -= floor(phi / (2 * pi)) * 2 * pi;
     if (nflect >= 1000) {
-      available = false;
-      break;
+      nflect = 0;
+      force_outward = true;
+      outward_bound = 2 * rmax;
     }
   }
 

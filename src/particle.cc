@@ -2,6 +2,7 @@
 #include <sstream>
 #include <iomanip>
 #include <functional>
+#include <filesystem>
 
 #include "Vec.hh"
 #include "particle.h"
@@ -137,10 +138,15 @@ void particle::step(const string& logname, int max_step) {
   int nflect = 0;
   int iter = 0;
 
+  double rmax = r;
+  double outward_bound = 2 * rmax;
+  bool force_outward = false;
+
   std::ofstream *logfile = NULL;
   if (!logname.empty()) {
     ostringstream osname;
-    osname << "s" << seed << "_" << logname;
+    filesystem::path lname(logname);
+    osname << lname.parent_path().c_str() << "/" << "s" << seed << "_" << lname.filename().c_str();
     logfile = new std::ofstream(osname.str());
   }
 
@@ -161,9 +167,6 @@ void particle::step(const string& logname, int max_step) {
         << endl;
   };
 
-  double rmax = r;
-  double outward_bound = 2 * rmax;
-  bool force_outward = false;
   while (r<boundary) {//theta<pi/2
     if (max_step > 0 && iter++ > max_step) break;
 
@@ -234,10 +237,14 @@ void particle::step(const string& logname, int max_step) {
     dwt = dist(gen) * sqrt(dt);
     dwp = dist(gen) * sqrt(dt);
 
-    if (force_outward) dwr = fabs(dwr);
 
     coord_trans(krr, ktt, kpp, krp, dwr, dwt, dwp);
-    //if (r < 4 * AU) dwr = fabs(dwr);
+
+    if (force_outward && dwr < 0) {
+      dwr = -dwr;
+      dwt = -dwt;
+      dwp = -dwp;
+    }
 
     dr = - (Vs + Vdr
             - 1 / r / r * dr2krr_dr

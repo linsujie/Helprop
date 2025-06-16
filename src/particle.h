@@ -49,7 +49,7 @@ class particle {
     particle();
     ~particle();
 
-    void step(const std::string& logname = "");                                   //simulate trajectory of particle
+    void step(const std::string& logname = "", int max_step = -1);                                   //simulate trajectory of particle
 
     public:
     double Wind() const;                                        //solar wind velocity function

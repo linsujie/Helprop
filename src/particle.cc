@@ -107,7 +107,7 @@ void particle::coord_trans(double krr, double ktt, double kpp, double krp, doubl
   dwp = mpp * dwp;
 }
 
-void particle::step(const string& logname) {
+void particle::step(const string& logname, int max_step) {
   if (!fix_seed) {
     random_device rd;
     seed = rd();
@@ -134,7 +134,8 @@ void particle::step(const string& logname) {
   double krr, ktt, kpp, krp;
   double krr_dr, ktt_dr, kpp_dr, krp_dr;
   double krr_dt, ktt_dt, kpp_dt, krp_dt;
-  double nflect = 0;
+  int nflect = 0;
+  int iter = 0;
 
   std::ofstream *logfile = NULL;
   if (!logname.empty()) {
@@ -164,6 +165,8 @@ void particle::step(const string& logname) {
   double outward_bound = 2 * rmax;
   bool force_outward = false;
   while (r<boundary) {//theta<pi/2
+    if (max_step > 0 && iter++ > max_step) break;
+
     if (r > rmax) rmax = r;
     if (r > outward_bound) force_outward = false;
 

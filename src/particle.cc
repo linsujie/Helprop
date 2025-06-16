@@ -186,14 +186,15 @@ void particle::step(const string& logname, int max_step) {
     heaviside = Heav();
     double kpara = Kpara0();
 
-    //dt = kpara / (c_speed * c_speed);
-    Dt += dt;
-
     double B = 0;
     K(r, theta, heaviside, kpara, B, krr, ktt, kpp, krp);
     K(r * h, theta, heaviside, kpara, krr_dr, ktt_dr, kpp_dr, krp_dr);
     K(r, theta * h, heaviside, kpara, krr_dt, ktt_dt, kpp_dt, krp_dt);
     Vs_dr = Wind(r * h, theta, phi, HCS::angle);
+
+    const double ten_times_Vs = 8000 * Unit::km / Unit::sec; // Using the ten times of solar wind velocity as the typical propagation velocity
+    dt = fmin(kpara * B0 / B / ten_times_Vs / ten_times_Vs, 500. * Unit::sec); // The dt is set to let the propagation velocity at least ten times of solar wind, to avoid the particle catched by the solar wind.
+    Dt += dt;
 
     double dr2krr_dr = (r * r * h * h * krr_dr - r * r * krr) / r / dh;
     double dstktt_dt = (sin(theta * h) * ktt_dt - sin(theta) * ktt) / theta / dh;

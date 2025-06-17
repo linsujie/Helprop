@@ -212,7 +212,7 @@ void particle::step(const string& logname, int max_step) {
     if (force_outward) {
       n_Vdr_gc++;
       Vdr_gc_avg = Vdr_gc_avg * (n_Vdr_gc - 1) / n_Vdr_gc + Vdr_gc / n_Vdr_gc;
-      double v_crit = fmax(fabs(Vdr_gc_avg), 8000 * km / sec); // using the larger value of Vdr_gc_avg and ten times of solar wind velocity as criticle propagation velocity.
+      double v_crit = fmin(c_speed, fmax(fabs(3 * Vdr_gc_avg), 8000 * km / sec)); // using the larger value of Vdr_gc_avg and ten times of solar wind velocity as criticle propagation velocity.
       dt = fmin(kpara * B0 / B / v_crit / v_crit, 500. * Unit::sec); // In outward mode, set the propagation velocity to be average value of Vdr_gc to avoid the particle catched by the drift (drift velocity in the inner region is larger than the solar wind).
     }
 

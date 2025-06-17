@@ -137,6 +137,8 @@ void particle::step(const string& logname, int max_step) {
   double krr_dt, ktt_dt, kpp_dt, krp_dt;
   int nflect = 0;
   int iter = 0;
+  double Vdr_gc_avg = 0;
+  int n_Vdr_gc = 0;
 
   double rmax = r;
   double outward_bound = 2 * rmax;
@@ -192,13 +194,6 @@ void particle::step(const string& logname, int max_step) {
     K(r, theta * h, heaviside, kpara, krr_dt, ktt_dt, kpp_dt, krp_dt);
     Vs_dr = Wind(r * h, theta, phi, HCS::angle);
 
-    const double ten_times_Vs = 8000 * Unit::km / Unit::sec; // Using the ten times of solar wind velocity as the typical propagation velocity
-    dt = fmin(kpara * B0 / B / ten_times_Vs / ten_times_Vs, 500. * Unit::sec); // The dt is set to let the propagation velocity meet ten times of solar wind, to avoid the particle catched by the solar wind.
-    if (force_outward)
-      dt = fmin(kpara * B0 / B / c_speed / c_speed, 500. * Unit::sec); // In outward mode, to avoid the particle catched by the drift.
-
-    Dt += dt;
-
     double dr2krr_dr = (r * r * h * h * krr_dr - r * r * krr) / r / dh;
     double dstktt_dt = (sin(theta * h) * ktt_dt - sin(theta) * ktt) / theta / dh;
     double dkrp_dp = 0,
@@ -212,6 +207,15 @@ void particle::step(const string& logname, int max_step) {
     Vdr_gc = drift / pow(1 + gamma * gamma, 2.) * (- gamma ) / tan(theta);
     Vdt_gc = drift / pow(1 + gamma * gamma, 2.) *  (2 + gamma * gamma) * gamma;
     Vdp_gc = drift / pow(1 + gamma * gamma, 2.) * gamma * gamma / tan(theta);
+
+    dt = 500 * Unit::sec;
+    if (force_outward) {
+      n_Vdr_gc++;
+      Vdr_gc_avg = Vdr_gc_avg * (n_Vdr_gc - 1) / n_Vdr_gc + Vdr_gc / n_Vdr_gc;
+      dt = fmin(kpara * B0 / B / Vdr_gc_avg / Vdr_gc_avg, 500. * Unit::sec); // In outward mode, set the propagation velocity to be average value of Vdr_gc to avoid the particle catched by the drift (drift velocity in the inner region is larger than the solar wind).
+    }
+
+    Dt += dt;
 
     Vns = 0.;
     Rg = fabs(rigidity / (B * c_speed));
@@ -307,6 +311,7 @@ void particle::step(const string& logname, int max_step) {
       phi -= floor(phi / (2 * pi)) * 2 * pi;
     if (nflect >= 1000) {
       nflect = 0;
+      n_Vdr_gc = 0;
       force_outward = true;
       outward_bound = 2 * rmax;
     }

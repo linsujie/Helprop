@@ -151,11 +151,11 @@ void particle::step(const string& logname, int max_step) {
   }
 
   if (logfile)
-     *logfile << "t[month],nflect,r[AU],theta[rad],phi[rad],Ek[GeV],dEk[GeV],Vs[km/s],heav,drift[km/s],Vdr_gc[km/s],Vdt_gc[km/s],Vdp_gc[km/s],Vdr_HCS[km/s],Vdt_HCS[km/s],Vdp_HCS[km/s],d_HCS[AU],Rg[AU],dwr[AU],dwt[rad],dwp[rad],dr[AU],dtheta[rad],dphi[rad]" << endl;
+     *logfile << "t[month],nflect,force_outward,rmax[AU],r[AU],theta[rad],phi[rad],Ek[GeV],dEk[GeV],Vs[km/s],heav,drift[km/s],Vdr_gc[km/s],Vdt_gc[km/s],Vdp_gc[km/s],Vdr_HCS[km/s],Vdt_HCS[km/s],Vdp_HCS[km/s],d_HCS[AU],Rg[AU],dwr[AU],dwt[rad],dwp[rad],dr[AU],dtheta[rad],dphi[rad]" << endl;
   auto write_log = [&]() {
     if (logfile)
       *logfile << Dt/day/30.
-        << "," << nflect
+        << "," << nflect << "," << force_outward << "," << rmax/AU
         << "," << r/AU << "," << theta << "," << phi << "," << Ek/GeV << "," << dEk/GeV
         << "," << Vs / (km/sec)
         << "," << heaviside << "," << drift/(km/sec)

@@ -193,7 +193,10 @@ void particle::step(const string& logname, int max_step) {
     Vs_dr = Wind(r * h, theta, phi, HCS::angle);
 
     const double ten_times_Vs = 8000 * Unit::km / Unit::sec; // Using the ten times of solar wind velocity as the typical propagation velocity
-    dt = fmin(kpara * B0 / B / ten_times_Vs / ten_times_Vs, 500. * Unit::sec); // The dt is set to let the propagation velocity at least ten times of solar wind, to avoid the particle catched by the solar wind.
+    dt = fmin(kpara * B0 / B / ten_times_Vs / ten_times_Vs, 500. * Unit::sec); // The dt is set to let the propagation velocity meet ten times of solar wind, to avoid the particle catched by the solar wind.
+    if (force_outward)
+      dt = fmin(kpara * B0 / B / c_speed / c_speed, 500. * Unit::sec); // In outward mode, to avoid the particle catched by the drift.
+
     Dt += dt;
 
     double dr2krr_dr = (r * r * h * h * krr_dr - r * r * krr) / r / dh;

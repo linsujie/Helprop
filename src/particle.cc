@@ -141,7 +141,7 @@ void particle::step(const string& logname, int max_step) {
   int n_Vdr_gc = 0;
 
   double rmax = r;
-  double outward_bound = 2 * rmax;
+  double outward_bound = 3 * rmax;
   bool force_outward = false;
 
   std::ofstream *logfile = NULL;
@@ -310,11 +310,11 @@ void particle::step(const string& logname, int max_step) {
 
     if (phi < 0 || 2 * pi < phi)
       phi -= floor(phi / (2 * pi)) * 2 * pi;
-    if (nflect >= 1000) {
+    if (nflect >= 3) {
       nflect = 0;
       n_Vdr_gc = 0;
       force_outward = true;
-      outward_bound = 2 * rmax;
+      outward_bound = 3 * rmax;
     }
   }
 

@@ -17,14 +17,14 @@ using namespace Unit;
 const double particle::mp = 0.93827 * GeV;
 particle::particle() :
   A(1), Z(1),
-  polarity(-1), B0(5 * nT), indexA(2), D0(5 * 1e22 * cm * cm / sec), rigidity0(1 * GeV / e),
+  polarity(-1), B0(5 * nT), indexA(2), indexB(1), D0(5 * 1e22 * cm * cm / sec), rigidity0(1 * GeV / e), rk(3 * GeV / e / rigidity0),
   Bn(B0 * AU * AU / 1.35883),
   r(AU), theta(90*deg + 1e-10), phi(1e-10), hcs(Wind(), "")
   {}
 
 particle::particle(const map<string, docopt::value>& args) :
   A(args.at("--A").asLong()), Z(args.at("--Z").asLong()),
-  polarity(args.at("--polarity").asLong()), B0(stod(args.at("--B0").asString()) * nT), indexA(stod(args.at("--indexA").asString())), D0(stod(args.at("--D0").asString()) * 1e22 * cm * cm / sec), rigidity0(stod(args.at("--R0").asString()) * GeV / e),
+  polarity(args.at("--polarity").asLong()), B0(stod(args.at("--B0").asString()) * nT), indexA(stod(args.at("--indexA").asString())), indexB(stod(args.at("--indexB").asString())), D0(stod(args.at("--D0").asString()) * 1e22 * cm * cm / sec), rigidity0(stod(args.at("--R0").asString()) * GeV / e), rk(3 * GeV / e / rigidity0),
   Bn(B0 * AU * AU / 1.35883),
   r(AU), theta(90*deg + 1e-6), phi(1e-10), hcs(Wind(), args.at("--hcs-table").asString())
 {}
@@ -65,7 +65,10 @@ double particle::B_p(double r, double theta, double heaviside) const {
 }
 
 double particle::Kpara0() const { // parallel diffusion coefficient at the earth
-  return D0 * V_p * pow(fabs(rigidity) / rigidity0, indexA);
+  const double r0 = fabs(rigidity) / rigidity0;
+  const double m = 3;
+  return D0 * V_p / c_speed * pow(r0, indexA)
+    * pow((pow(r0, m) + pow(rk, m)) / (1 + pow(rk, m)), (indexB - indexA) / m);
 }
 
 double f_perp_t(double theta) {

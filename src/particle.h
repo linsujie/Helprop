@@ -23,9 +23,11 @@ class particle {
     double polarity;                                            //field direction
     double B0;                                                  //magnetic strength in the Earth in T
 
+    double indexA;                                              //power index related to rigidity of particle
+    double indexB;                                              //power index related to rigidity of particle
     double D0;                                                   //diffusion factor
     double rigidity0;                                                  // reference rigidity of D0
-    double indexA;                                              //power index related to rigidity of particle
+    double rk;                                                  // reference rigidity of D0
 
     double Bn;
     double Bt = 0.0;                                            //

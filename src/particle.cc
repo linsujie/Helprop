@@ -54,6 +54,7 @@ double particle::Heav() {
     value = -1.;
 
   return value;
+  return value;
 }
 
 double particle::B_r(double r, double theta, double heaviside) const {

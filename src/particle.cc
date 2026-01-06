@@ -24,6 +24,8 @@ particle::particle() :
 
 particle::particle(const map<string, docopt::value>& args) :
   A(args.at("--A").asLong()), Z(args.at("--Z").asLong()),
+  A_drift_gc(atof(args.at("--A-drift-gc").asString().c_str())),
+  A_drift_HCS(atof(args.at("--A-drift-HCS").asString().c_str())),
   polarity(args.at("--polarity").asLong()), B0(stod(args.at("--B0").asString()) * nT), indexA(stod(args.at("--indexA").asString())), indexB(stod(args.at("--indexB").asString())), D0(stod(args.at("--D0").asString()) * 1e22 * cm * cm / sec), rigidity0(stod(args.at("--R0").asString()) * GeV / e), rk(3 * GeV / e / rigidity0),
   Bn(B0 * AU * AU / 1.35883),
   r(AU), theta(90*deg + 1e-6), phi(1e-10), hcs(Wind(), args.at("--hcs-table").asString())
@@ -207,7 +209,7 @@ void particle::step(const string& logname, int max_step) {
     double gamma = r * HCS::Omega * sin(theta) / Vs;
 
     //cout << M_p << " " << V_p << " " << r / AU << " " << B0 << " " << Bn << " " << Z << " " << e << endl;
-    drift = 2 * M_p * V_p * r / (3 * Z * e * Bn) * heaviside * polarity;
+    drift = 2 * M_p * V_p * r / (3 * Z * e * Bn) * heaviside * polarity * A_drift_gc;
     Vdr_gc = drift / pow(1 + gamma * gamma, 2.) * (- gamma ) / tan(theta);
     Vdt_gc = drift / pow(1 + gamma * gamma, 2.) *  (2 + gamma * gamma) * gamma;
     Vdp_gc = drift / pow(1 + gamma * gamma, 2.) * gamma * gamma / tan(theta);
@@ -229,7 +231,7 @@ void particle::step(const string& logname, int max_step) {
       hcs.resolution = 0.001 * Rg;
       d_HCS = fabs(hcs.get_distance(r, theta, phi));
       if(d_HCS < 2*Rg)
-        Vns = (0.457 - 0.412 * d_HCS / Rg + 0.0915 * d_HCS * d_HCS / Rg / Rg) * V_p * polarity * (Z > 0 ? 1 : -1) * A_drift;//
+        Vns = (0.457 - 0.412 * d_HCS / Rg + 0.0915 * d_HCS * d_HCS / Rg / Rg) * V_p * polarity * (Z > 0 ? 1 : -1) * A_drift_HCS;//
   
       double Vrx = r * sin(theta_s) * HCS::Omega;
       double Vtx = - tan(HCS::angle) * sin(theta_s) * cos(hcs.phi0(r, phi)) * (hcs.Vs_eq * hcs.Vs_eq + Vrx * Vrx) / hcs.Vs_eq;

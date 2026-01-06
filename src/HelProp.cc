@@ -173,6 +173,8 @@ This Routine is used to simulate the modulation of particle within heliosphere.
       -B B0, --B0 B0                    The magnetic strength around the Earth in nT [default: 5].
       -p POLARITY, --polarity POLARITY  The direction polarity of the magnetic field [default: -1].
       -a ANGLE, --angle ANGLE           Tilt angle of HCS in deg [default: 15].
+      --A-drift-HCS DHCS                The normalization of HCS drift [default: 1].
+      --A-drift-gc DGC                  The normalization of gc drift [default: 1].
       -D D0, --D0 D0                    Reference diffusion coefficient in unit 1e22 cm^2/s [default: 5].
       -R R0, --R0 R0                    Reference rigidity for the diffusion coefficient in unit GV [default: 1].
       --indexA INDEXA                   Diffusion index a [default: 1].

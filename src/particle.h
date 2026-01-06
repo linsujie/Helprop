@@ -14,7 +14,8 @@ class particle {
     bool available;
     long seed = 0;
     long fix_seed = false;
-    double A_drift = 1;
+    double A_drift_HCS = 1;
+    double A_drift_gc = 1;
 
     double boundary = 100 * Unit::AU;                                     //boundary condition in AU
     double dt = 500. * Unit::sec;                                             //time interval per step

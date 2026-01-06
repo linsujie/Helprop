@@ -279,7 +279,7 @@ void particle::step(const string& logname, int max_step) {
               + dwp;
 
     dEk = 0;
-    if (r >= 1 * AU && r + dr >= 1 * AU) {
+    if (true) {
       double r_next = r + dr;
       Vs_dr = Wind(r_next, theta, phi, HCS::angle);
       dr2V_dr = (r_next * r_next * Vs_dr - r * r * Vs) / dr;
@@ -316,7 +316,7 @@ void particle::step(const string& logname, int max_step) {
 
     if (phi < 0 || 2 * pi < phi)
       phi -= floor(phi / (2 * pi)) * 2 * pi;
-    if (nflect >= 1000) {
+    if (false) {
       nflect = 0;
       n_Vdr_gc = 0;
       force_outward = true;

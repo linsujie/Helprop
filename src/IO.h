@@ -13,7 +13,7 @@ public:
   enum WRITEMODE { RECREATE, APPEND };
   std::map<std::string, double> params;
   std::vector<long> seed;
-  std::vector<double> etoa, elis;
+  std::vector<double> etoa, elis, tcost;
   double eunit;
   void set_params(const std::map<std::string, docopt::value>& args);
   virtual bool readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry = 1);

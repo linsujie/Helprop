@@ -130,7 +130,7 @@ void particle::step(const string& logname, int max_step) {
   // theta = 1e-3;
   const double dh = 1e-3;
   const double h = 1 + dh;
-  double Dt = 0;
+  Dt = 0;
   double drift = 0;
   double Vdr_gc = 0, Vdt_gc = 0, Vdp_gc = 0;
   double Vkrr = 0, Vkrp = 0;
@@ -214,12 +214,13 @@ void particle::step(const string& logname, int max_step) {
     Vdt_gc = drift / pow(1 + gamma * gamma, 2.) *  (2 + gamma * gamma) * gamma;
     Vdp_gc = drift / pow(1 + gamma * gamma, 2.) * gamma * gamma / tan(theta);
 
-    dt = 500 * Unit::sec;
+    double kmax = fmax(fmax(fmax(krr, ktt), kpp), krp);
+    dt = fmax(500 * Unit::sec, kmax / c_speed / c_speed);
     if (force_outward) {
       n_Vdr_gc++;
       Vdr_gc_avg = Vdr_gc_avg * (n_Vdr_gc - 1) / n_Vdr_gc + Vdr_gc / n_Vdr_gc;
       double v_crit = fmin(c_speed, fmax(fabs(3 * Vdr_gc_avg), 8000 * km / sec)); // using the larger value of Vdr_gc_avg and ten times of solar wind velocity as criticle propagation velocity.
-      dt = fmin(kpara * B0 / B / v_crit / v_crit, 500. * Unit::sec); // In outward mode, set the propagation velocity to be average value of Vdr_gc to avoid the particle catched by the drift (drift velocity in the inner region is larger than the solar wind).
+      dt = fmin(kpara * B0 / B / v_crit / v_crit, dt); // In outward mode, set the propagation velocity to be average value of Vdr_gc to avoid the particle catched by the drift (drift velocity in the inner region is larger than the solar wind).
     }
 
     Dt += dt;

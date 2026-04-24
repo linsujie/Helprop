@@ -250,6 +250,7 @@ int main(int argc, char* argv[]) {
         io->seed.push_back(p.seed);
         io->etoa.push_back(one.Ek / GeV);
         io->elis.push_back(p.Ek / GeV);
+        io->tcost.push_back(p.Dt / day);
       }
   }
 

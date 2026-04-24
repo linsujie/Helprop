@@ -19,6 +19,7 @@ class particle {
 
     double boundary = 100 * Unit::AU;                                     //boundary condition in AU
     double dt = 500. * Unit::sec;                                             //time interval per step
+    double Dt;
     double Vs;                                                  //solar wind velocity
 
     double polarity;                                            //field direction

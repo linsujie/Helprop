@@ -389,7 +389,7 @@ struct SpecBson {
   vector<double> E;
   vector<double> F;
   vector<long> seed;
-  vector<double> etoa, elis;
+  vector<double> etoa, elis, tcost;
 };
 bool IO_BSON::readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry) {
   vector<char> buf = readbson(filename, ientry);
@@ -401,6 +401,7 @@ bool IO_BSON::readspec(const std::string& filename, std::vector<double>& E, std:
   F = res.F;
   etoa = res.etoa;
   elis = res.elis;
+  tcost = res.tcost;
   params = res.params;
 
   E = assign_unit(E, eunit);
@@ -417,7 +418,7 @@ bool IO_BSON::writespec(const std::string& filename, const std::vector<double>& 
   auto E = split_unit(E_, eunit);
   auto F = split_unit(F_, 1.0 / eunit);
 
-  const auto spec = SpecBson{.params= params, .E = E, .F = F, .seed = seed, .etoa = etoa, .elis = elis};
+  const auto spec = SpecBson{.params= params, .E = E, .F = F, .seed = seed, .etoa = etoa, .elis = elis, .tcost = tcost};
   vector<char> bspec = rfl::bson::write(spec);
 
   FILE *of = fopen(filename.c_str(), mode == APPEND ? "a" : "w");
@@ -430,7 +431,7 @@ bool IO_BSON::writespec(const std::string& filename, const std::vector<double>& 
 struct MatrixBson {
   map<string, double> params;
   std::vector<long> seed;
-  std::vector<double> ETOA, ELIS, etoa, elis;
+  std::vector<double> ETOA, ELIS, etoa, elis, tcost;
   std::vector<std::vector<double> > M;
 };
 bool IO_BSON::readmatrix(const std::string& filename, std::vector<double>& ETOA, std::vector<double>& ELIS, std::vector< std::vector<double> >& M, int ientry) {
@@ -461,7 +462,7 @@ bool IO_BSON::writematrix(const std::string& filename, const std::vector<double>
   auto ELIS = split_unit(ELIS_, eunit);
   auto M = M_;// split_unit(M_, 1.0 / eunit / eunit / eunit);
 
-  const auto matrix = MatrixBson{.params=params, .seed = seed, .ETOA = ETOA, .ELIS = ELIS, .etoa = etoa, .elis = elis, .M = M};
+  const auto matrix = MatrixBson{.params=params, .seed = seed, .ETOA = ETOA, .ELIS = ELIS, .etoa = etoa, .elis = elis, .tcost = tcost, .M = M};
   vector<char> bmatrix = rfl::bson::write(matrix);
 
   FILE *of = fopen(filename.c_str(), mode == APPEND ? "a" : "w");

@@ -36,9 +36,9 @@ particle::~particle() {}
 double particle::Wind(double r, double theta, double phi, double angle) const{
   double value;
     if (0. <= theta && theta <= pi / 2.) {
-      value = (1.475 - 0.4 * tanh(6.8 * ((theta - pi / 2) + (15 * deg + angle)))) * (3.5 / 5. - 1.5 / 5. * tanh((r - 120 * AU) / 1.2 / AU));
+      value = (1.475 - 0.4 * tanh(6.8 * ((theta - pi / 2) + (15 * deg + angle)))) * (3.5 / 5. - 1.5 / 5. * tanh((r - 90 * AU) / 1.2 / AU));
     } else if (pi / 2. < theta && theta <= pi) {
-      value = (1.475 + 0.4 * tanh(6.8 * ((theta - pi / 2) - (15 * deg + angle)))) * (3.5 / 5. - 1.5 / 5. * tanh((r - 120 * AU) / 1.2 / AU));
+      value = (1.475 + 0.4 * tanh(6.8 * ((theta - pi / 2) - (15 * deg + angle)))) * (3.5 / 5. - 1.5 / 5. * tanh((r - 90 * AU) / 1.2 / AU));
     }
     return  value * 400 * (km / sec);
 }

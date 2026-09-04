@@ -17,7 +17,7 @@ using namespace Unit;
 const double particle::mp = 0.93827 * GeV;
 particle::particle() :
   A(1), Z(1),
-  polarity(-1), B0(5 * nT), indexA(2), indexB(1), D0(5 * 1e22 * cm * cm / sec), rigidity0(1 * GeV / e), rk(3 * GeV / e / rigidity0),
+  polarity(-1), B0(5 * nT), indexA(1), indexB(1), D0(5 * 1e22 * cm * cm / sec), rigidity0(1 * GeV / e), rk(3 * GeV / e / rigidity0),
   Bn(B0 * AU * AU / 1.35883),
   r(AU), theta(90*deg + 1e-10), phi(1e-10), hcs(Wind(), "")
   {}
@@ -74,7 +74,7 @@ double particle::Kpara0() const { // parallel diffusion coefficient at the earth
     * pow((pow(r0, m) + pow(rk, m)) / (1 + pow(rk, m)), (indexB - indexA) / m);
 }
 
-double f_perp_t(double theta) {
+double f_perp_t(double theta) { // normalized; equal to half of the paper
   if (theta > pi / 2) theta = pi - theta;
   return 1.0 - 0.5 * tanh(8 * (theta - pi / 2 + 35 * deg));
 }
@@ -86,7 +86,7 @@ void particle::K(double r, double theta, double heaviside, double kpara, double&
 
   kpara *= B0 / B;
   double k_perp_r = 0.02 * kpara;
-  double k_perp_t = k_perp_r * f_perp_t(theta);
+  double k_perp_t = k_perp_r * f_perp_t(theta) * 2; // The paper is using 2 times of the normalized f factor.
 
   double sin_psi = Bp / B,
          cos_psi = Br / B;

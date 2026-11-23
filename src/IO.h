@@ -14,7 +14,12 @@ public:
   std::map<std::string, double> params;
   std::vector<long> seed;
   std::vector<double> etoa, elis, tcost;
-  double eunit;
+  double eunit = 1.0;
+  // When true, the BSON readers adopt the metadata stored in the input file
+  // (params, seed and the per-particle sample arrays). It is off by default so
+  // that the parameters of the current run are not silently replaced by the
+  // ones found in the input file.
+  bool read_meta = false;
   void set_params(const std::map<std::string, docopt::value>& args);
   virtual bool readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry = 1);
   virtual bool writespec(const std::string& filename, const std::vector<double>& E, const std::vector<double>& F, WRITEMODE mode = RECREATE) const;

@@ -11,8 +11,59 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <algorithm>
+#include <exception>
+#include <cstring>
 
 using namespace std;
+
+namespace {
+
+// Removes the trailing CR of CRLF files.
+string chomp(string line) {
+  while (!line.empty() && (line.back() == '\r' || line.back() == '\n'))
+    line.pop_back();
+  return line;
+}
+
+// Parses whitespace separated doubles. Returns false when a token cannot be
+// parsed or when the line does not contain any number.
+bool parse_ws_doubles(const string& line, vector<double>& out) {
+  out.clear();
+  istringstream is(line);
+  double val;
+  while (is >> val) out.push_back(val);
+  return is.eof() && !out.empty();
+}
+
+// Parses comma separated doubles. Empty fields (e.g. a trailing comma) are
+// ignored, malformed fields make the parsing fail.
+bool parse_csv_doubles(const string& line, vector<double>& out) {
+  out.clear();
+  string token;
+  istringstream ss(line);
+  while (getline(ss, token, ',')) {
+    const auto first = token.find_first_not_of(" \t\r\n");
+    if (first == string::npos) continue;
+    const auto last = token.find_last_not_of(" \t\r\n");
+    token = token.substr(first, last - first + 1);
+
+    istringstream ts(token);
+    double val;
+    char extra;
+    if (!(ts >> val) || (ts >> extra)) return false;
+    out.push_back(val);
+  }
+  return !out.empty();
+}
+
+bool erase_prefix(string& line, const string& prefix) {
+  if (line.rfind(prefix, 0) != 0) return false;
+  line.erase(0, prefix.size());
+  return true;
+}
+
+} // namespace
 
 vector<double> IO::split_unit(const vector<double>& vec, const double unit) {
   vector<double> res = vec;
@@ -72,23 +123,41 @@ bool IO_TXT::readspec(const std::string& filename, std::vector<double>& E, std::
   }
 
   string line;
-  int idata = 0;
+  bool found = false;
   while (getline(spectrumFile, line)) {
-    if (line == "# E F") idata++;
-    if (idata == ientry) break;
+    line = chomp(line);
+    if (line == "# E F" && --ientry == 0) {
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    cerr << "IO_TXT::readspec: could not find the requested entry in file " << filename << endl;
+    return false;
   }
 
   while (getline(spectrumFile, line)) {
+    line = chomp(line);
+    if (line.empty()) continue;
     if (line[0] == '#') break;
 
-    double x, y;
     istringstream iss(line);
-    iss >> x >> y;
+    double x, y;
+    if (!(iss >> x >> y)) {
+      cerr << "IO_TXT::readspec: malformed line in file " << filename << ": " << line << endl;
+      return false;
+    }
     E.push_back(x);
     F.push_back(y);
   }
 
   spectrumFile.close();
+
+  if (E.empty()) {
+    cerr << "IO_TXT::readspec: empty spectrum in file " << filename << endl;
+    return false;
+  }
+
   E = assign_unit(E, eunit);
   F = assign_unit(F, 1.0 / eunit);
   return true;
@@ -96,6 +165,10 @@ bool IO_TXT::readspec(const std::string& filename, std::vector<double>& E, std::
 
 bool IO_TXT::writespec(const std::string& filename, const std::vector<double>& E_, const std::vector<double>& F_, WRITEMODE mode) const {
   ofstream of(filename, mode == APPEND ? ios::app : ios::trunc);
+  if (!of) {
+    cerr << "IO_TXT::writespec: cannot open file " << filename << endl;
+    return false;
+  }
 
   if (E_.size() != F_.size()) {
     cerr << "IO_TXT::writespec: E and F have different sizes" << endl;
@@ -127,32 +200,50 @@ bool IO_TXT::readmatrix(const std::string& filename, std::vector<double>& ETOA, 
   }
 
   string line;
-  double val;
-  int idata = 0;
+  bool found = false;
   while (getline(data, line)) {
-    if (line[0] == '#') idata++;
-    if (ientry == idata) break;
+    line = chomp(line);
+    if (!line.empty() && line[0] == '#' && --ientry == 0) {
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    cerr << "IO_TXT::readmatrix: could not find the requested entry in file " << filename << endl;
+    return false;
   }
 
-  istringstream ishead(line);
-  ishead >> val;
-  while (ishead >> val) ELIS.push_back(val);
+  // The header line is "# <ELIS values>"; drop the leading '#' before parsing.
+  string header = line;
+  header.erase(0, header.find('#') + 1);
+  if (!parse_ws_doubles(header, ELIS)) {
+    cerr << "IO_TXT::readmatrix: malformed ELIS header in file " << filename << endl;
+    return false;
+  }
 
-  M.reserve(ELIS.size());
-  
   while (getline(data, line)) {
+    line = chomp(line);
+    if (line.empty()) continue;
     if (line[0] == '#') break;
-    M.resize(M.size() + 1);
-    vector<double>& row = M.back();
-    row.reserve(ELIS.size());
 
-    istringstream is(line);
-    is >> val;
-    ETOA.push_back(val);
-    while (is >> val) row.push_back(val);
+    vector<double> vals;
+    if (!parse_ws_doubles(line, vals) || vals.size() != ELIS.size() + 1) {
+      cerr << "IO_TXT::readmatrix: expected " << ELIS.size() + 1
+           << " columns in file " << filename << ", got: " << line << endl;
+      return false;
+    }
+    ETOA.push_back(vals.front());
+    vals.erase(vals.begin());
+    M.push_back(std::move(vals));
   }
 
   data.close();
+
+  if (M.empty() || M.size() != ETOA.size()) {
+    cerr << "IO_TXT::readmatrix: no data rows found in file " << filename << endl;
+    return false;
+  }
+
   ETOA = assign_unit(ETOA, eunit);
   ELIS = assign_unit(ELIS, eunit);
   //M = assign_unit(M, 1.0 / eunit / eunit / eunit);
@@ -164,12 +255,26 @@ bool IO_TXT::writematrix(const std::string& filename, const std::vector<double>&
     cerr << "IO_TXT::writematrix: ETOA and M have different sizes" << endl;
     return false;
   }
+  if (ELIS_.empty()) {
+    cerr << "IO_TXT::writematrix: empty ELIS axis" << endl;
+    return false;
+  }
+  for (const auto& row : M_)
+    if (row.size() != ELIS_.size()) {
+      cerr << "IO_TXT::writematrix: matrix row has " << row.size()
+           << " columns but ELIS has " << ELIS_.size() << endl;
+      return false;
+    }
 
   auto ETOA = split_unit(ETOA_, eunit);
   auto ELIS = split_unit(ELIS_, eunit);
   auto M = M_;// split_unit(M_, 1.0 / eunit / eunit / eunit);
 
   ofstream of(filename, mode == APPEND ? ios::app : ios::trunc);
+  if (!of) {
+    cerr << "IO_TXT::writematrix: cannot open file " << filename << endl;
+    return false;
+  }
   of << setprecision(8) << setiosflags(ios::scientific);
   of << "# ";
   for (int i = 0; i < ELIS.size(); i++)
@@ -245,16 +350,36 @@ bool IO_CSV::readspec(const std::string& filename, std::vector<double>& E, std::
   }
 
   string line;
-  int idata = 0;
+  bool found = false;
   while (getline(data, line)) {
-    if (line == "#E,F") idata++;
-    if (idata == ientry) break;
+    line = chomp(line);
+    if (line == "#E,F" && --ientry == 0) {
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    cerr << "IO_CSV::readspec: could not find the requested entry in file " << filename << endl;
+    return false;
   }
 
   while (getline(data, line)) {
-    auto vals = split<double>(line, ",");
+    line = chomp(line);
+    if (line.empty()) continue;
+    if (line[0] == '#') break;
+
+    vector<double> vals;
+    if (!parse_csv_doubles(line, vals) || vals.size() < 2) {
+      cerr << "IO_CSV::readspec: malformed line in file " << filename << ": " << line << endl;
+      return false;
+    }
     E.push_back(vals[0]);
     F.push_back(vals[1]);
+  }
+
+  if (E.empty()) {
+    cerr << "IO_CSV::readspec: empty spectrum in file " << filename << endl;
+    return false;
   }
 
   E = assign_unit(E, eunit);
@@ -273,6 +398,10 @@ bool IO_CSV::writespec(const std::string& filename, const std::vector<double>& E
   auto F = split_unit(F_, 1.0 / eunit);
 
   ofstream of(filename, mode == APPEND ? ios::app : ios::trunc);
+  if (!of) {
+    cerr << "IO_CSV::writespec: cannot open file " << filename << endl;
+    return false;
+  }
   of << "#E,F" << endl;
   of << setprecision(8) << setiosflags(ios::scientific);
   for (int i = 0; i < E.size(); i++)
@@ -295,30 +424,58 @@ bool IO_CSV::readmatrix(const std::string& filename, std::vector<double>& ETOA, 
   }
 
   string line;
-  int idata = 0;
+  bool found = false;
   while (getline(data, line)) {
-    if (line.substr(0, 6) == "#ELIS,") idata++;
-    if (idata == ientry) break;
+    line = chomp(line);
+    if (line.rfind("#ELIS,", 0) == 0 && --ientry == 0) {
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    cerr << "IO_CSV::readmatrix: could not find the requested entry in file " << filename << endl;
+    return false;
   }
 
-  line.erase(0, 3);
-  ELIS = split<double>(line, ",");
+  string header = line;
+  erase_prefix(header, "#ELIS,");
+  if (!parse_csv_doubles(header, ELIS)) {
+    cerr << "IO_CSV::readmatrix: malformed ELIS header in file " << filename << endl;
+    return false;
+  }
 
-  getline(data, line);
-  line.erase(0, 3);
-  ETOA = split<double>(line, ",");
+  if (!getline(data, line)) {
+    cerr << "IO_CSV::readmatrix: missing ETOA header in file " << filename << endl;
+    return false;
+  }
+  line = chomp(line);
+  if (!erase_prefix(line, "#ETOA,") || !parse_csv_doubles(line, ETOA)) {
+    cerr << "IO_CSV::readmatrix: malformed ETOA header in file " << filename << endl;
+    return false;
+  }
 
-  double val;
-  getline(data, line);
-
-  M.reserve(ETOA.size());
   while (getline(data, line)) {
-    if (line[0] == '#') break;
-    M.resize(M.size() + 1);
-    M[M.size() - 1] = split<double>(line, ",");
+    line = chomp(line);
+    if (line.empty()) continue;
+    // A new "#ELIS," line marks the beginning of the next entry.
+    if (line.rfind("#ELIS,", 0) == 0) break;
+    if (line[0] == '#') continue;
+
+    vector<double> row;
+    if (!parse_csv_doubles(line, row) || row.size() != ELIS.size()) {
+      cerr << "IO_CSV::readmatrix: expected " << ELIS.size()
+           << " columns in file " << filename << ", got: " << line << endl;
+      return false;
+    }
+    M.push_back(std::move(row));
   }
 
   data.close();
+
+  if (M.empty() || M.size() != ETOA.size()) {
+    cerr << "IO_CSV::readmatrix: ETOA and M have different sizes in file " << filename << endl;
+    return false;
+  }
 
   ETOA = assign_unit(ETOA, eunit);
   ELIS = assign_unit(ELIS, eunit);
@@ -331,28 +488,48 @@ bool IO_CSV::writematrix(const std::string& filename, const std::vector<double>&
     cerr << "IO_CSV::writematrix: ETOA and M have different sizes" << endl;
     return false;
   }
+  if (ELIS_.empty()) {
+    cerr << "IO_CSV::writematrix: empty ELIS axis" << endl;
+    return false;
+  }
+  for (const auto& row : M_)
+    if (row.size() != ELIS_.size()) {
+      cerr << "IO_CSV::writematrix: matrix row has " << row.size()
+           << " columns but ELIS has " << ELIS_.size() << endl;
+      return false;
+    }
 
   auto ETOA = split_unit(ETOA_, eunit);
   auto ELIS = split_unit(ELIS_, eunit);
   auto M = M_;// split_unit(M_, 1.0 / eunit / eunit / eunit);
 
   ofstream of(filename, mode == APPEND ? ios::app : ios::trunc);
+  if (!of) {
+    cerr << "IO_CSV::writematrix: cannot open file " << filename << endl;
+    return false;
+  }
   of << setprecision(8) << setiosflags(ios::scientific);
   of << "#ELIS,";
-  for (int i = 0; i < ELIS.size() - 1; i++)
-    of << ELIS[i] << ",";
-  of << ELIS[ELIS.size() - 1] << endl;
+  for (int i = 0; i < ELIS.size(); i++) {
+    if (i > 0) of << ",";
+    of << ELIS[i];
+  }
+  of << endl;
 
   of << "#ETOA,";
-  for (int i = 0; i < ELIS.size() - 1; i++)
-    of << ETOA[i] << ",";
-  of << ETOA[ETOA.size() - 1] << endl;
+  for (int i = 0; i < ETOA.size(); i++) {
+    if (i > 0) of << ",";
+    of << ETOA[i];
+  }
+  of << endl;
 
   of << "#Matrix" << endl;
   for (int irow = 0; irow < M.size(); irow++) {
-    for (int icol = 0; icol < M[irow].size() - 1; icol++)
-      of << M[irow][icol] << ",";
-    of << M[irow][M[irow].size() - 1] << endl;
+    for (int icol = 0; icol < M[irow].size(); icol++) {
+      if (icol > 0) of << ",";
+      of << M[irow][icol];
+    }
+    of << endl;
   }
 
   of.close();
@@ -370,12 +547,22 @@ vector<char> readbson(const string& filename, int ientry) {
 
   for (int i = 0; i < ientry; i++) {
     buf.resize(4);
-    int slen = fread(&buf[0], 1, 4, datafile);
-    int entry_size = *((int*)(&buf[0]));
+    if (fread(&buf[0], 1, 4, datafile) != 4) {
+      cerr << "IO_BSON::readspec/readmatrix: entry " << i + 1 << " not found in file " << filename << endl;
+      buf.clear();
+      break;
+    }
+    int entry_size = 0;
+    memcpy(&entry_size, buf.data(), sizeof(entry_size));
+    if (entry_size < 5) {
+      cerr << "IO_BSON::readspec/readmatrix: invalid size of entry " << i + 1
+           << " in file " << filename << endl;
+      buf.clear();
+      break;
+    }
     buf.resize(entry_size);
-    int sentry = fread(&buf[4], 1, entry_size - 4, datafile);
-    if (slen != 4 || sentry != entry_size - 4) {
-      cerr << "IO_BSON::readspec/readmatrix: no " << i << "th entry found in file " << filename << endl;
+    if (fread(&buf[4], 1, entry_size - 4, datafile) != (size_t)(entry_size - 4)) {
+      cerr << "IO_BSON::readspec/readmatrix: entry " << i + 1 << " not found in file " << filename << endl;
       buf.clear();
       break;
     }
@@ -396,16 +583,34 @@ bool IO_BSON::readspec(const std::string& filename, std::vector<double>& E, std:
 
   if (buf.empty()) return false;
 
-  const auto res = rfl::bson::read<SpecBson>(buf).value();
-  E = res.E;
-  F = res.F;
-  etoa = res.etoa;
-  elis = res.elis;
-  tcost = res.tcost;
-  params = res.params;
+  SpecBson res;
+  try {
+    // DefaultIfMissing allows specs that only contain E and F (or any other
+    // subset of the fields); the missing members keep their default values.
+    res = rfl::bson::read<SpecBson, rfl::DefaultIfMissing>(buf).value();
+  } catch (const std::exception& e) {
+    cerr << "IO_BSON::readspec: cannot parse file " << filename << ": " << e.what() << endl;
+    return false;
+  }
 
-  E = assign_unit(E, eunit);
-  F = assign_unit(F, 1.0 / eunit);
+  if (res.E.empty() || res.E.size() != res.F.size()) {
+    cerr << "IO_BSON::readspec: E and F must be non-empty and of equal size in file "
+         << filename << endl;
+    return false;
+  }
+
+  E = assign_unit(res.E, eunit);
+  F = assign_unit(res.F, 1.0 / eunit);
+
+  // The metadata of the file is only adopted on demand: by default the
+  // parameters of the current run are kept.
+  if (read_meta) {
+    for (const auto& [key, value] : res.params) params[key] = value;
+    if (!res.seed.empty()) seed = res.seed;
+    if (!res.etoa.empty()) etoa = res.etoa;
+    if (!res.elis.empty()) elis = res.elis;
+    if (!res.tcost.empty()) tcost = res.tcost;
+  }
   return true;
 }
 
@@ -422,8 +627,16 @@ bool IO_BSON::writespec(const std::string& filename, const std::vector<double>& 
   vector<char> bspec = rfl::bson::write(spec);
 
   FILE *of = fopen(filename.c_str(), mode == APPEND ? "a" : "w");
-  fwrite(&bspec[0], 1, bspec.size(), of);
+  if (!of) {
+    cerr << "IO_BSON::writespec: cannot open file " << filename << endl;
+    return false;
+  }
+  const bool written = fwrite(&bspec[0], 1, bspec.size(), of) == bspec.size();
   fclose(of);
+  if (!written) {
+    cerr << "IO_BSON::writespec: failed to write file " << filename << endl;
+    return false;
+  }
 
   return true;
 }
@@ -438,16 +651,36 @@ bool IO_BSON::readmatrix(const std::string& filename, std::vector<double>& ETOA,
   vector<char> buf = readbson(filename, ientry);
   if (buf.empty()) return false;
 
-  const auto res = rfl::bson::read<MatrixBson>(buf).value();
-  ELIS = res.ELIS;
-  ETOA = res.ETOA;
-  etoa = res.etoa;
-  elis = res.elis;
-  M = res.M;
-  params = res.params;
+  MatrixBson res;
+  try {
+    res = rfl::bson::read<MatrixBson, rfl::DefaultIfMissing>(buf).value();
+  } catch (const std::exception& e) {
+    cerr << "IO_BSON::readmatrix: cannot parse file " << filename << ": " << e.what() << endl;
+    return false;
+  }
 
-  ETOA = assign_unit(ETOA, eunit);
-  ELIS = assign_unit(ELIS, eunit);
+  if (res.ETOA.empty() || res.ELIS.empty() || res.M.size() != res.ETOA.size()) {
+    cerr << "IO_BSON::readmatrix: inconsistent matrix dimensions in file " << filename << endl;
+    return false;
+  }
+  for (const auto& row : res.M)
+    if (row.size() != res.ELIS.size()) {
+      cerr << "IO_BSON::readmatrix: matrix row has " << row.size()
+           << " columns but ELIS has " << res.ELIS.size() << " in file " << filename << endl;
+      return false;
+    }
+
+  ELIS = assign_unit(res.ELIS, eunit);
+  ETOA = assign_unit(res.ETOA, eunit);
+  M = res.M;
+
+  if (read_meta) {
+    for (const auto& [key, value] : res.params) params[key] = value;
+    if (!res.seed.empty()) seed = res.seed;
+    if (!res.etoa.empty()) etoa = res.etoa;
+    if (!res.elis.empty()) elis = res.elis;
+    if (!res.tcost.empty()) tcost = res.tcost;
+  }
   //M = assign_unit(M, 1.0 / eunit / eunit / eunit);
   return true;
 }
@@ -457,6 +690,16 @@ bool IO_BSON::writematrix(const std::string& filename, const std::vector<double>
     cerr << "IO_BSON::writematrix: ETOA and M have different sizes" << endl;
     return false;
   }
+  if (ELIS_.empty()) {
+    cerr << "IO_BSON::writematrix: empty ELIS axis" << endl;
+    return false;
+  }
+  for (const auto& row : M_)
+    if (row.size() != ELIS_.size()) {
+      cerr << "IO_BSON::writematrix: matrix row has " << row.size()
+           << " columns but ELIS has " << ELIS_.size() << endl;
+      return false;
+    }
 
   auto ETOA = split_unit(ETOA_, eunit);
   auto ELIS = split_unit(ELIS_, eunit);
@@ -466,7 +709,15 @@ bool IO_BSON::writematrix(const std::string& filename, const std::vector<double>
   vector<char> bmatrix = rfl::bson::write(matrix);
 
   FILE *of = fopen(filename.c_str(), mode == APPEND ? "a" : "w");
-  fwrite(&bmatrix[0], 1, bmatrix.size(), of);
+  if (!of) {
+    cerr << "IO_BSON::writematrix: cannot open file " << filename << endl;
+    return false;
+  }
+  const bool written = fwrite(&bmatrix[0], 1, bmatrix.size(), of) == bmatrix.size();
   fclose(of);
+  if (!written) {
+    cerr << "IO_BSON::writematrix: failed to write file " << filename << endl;
+    return false;
+  }
   return true;
 }

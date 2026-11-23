@@ -94,8 +94,11 @@ void IO::set_params(const std::map<std::string, docopt::value>& args) {
     return atof(args.at(key).asString().c_str());
   };
 
-  for (auto& k : { "number", "A", "Z", "B0", "polarity", "angle", "D0", "R0", "indexA" })
+  for (auto& k : { "number", "A", "Z", "B0", "polarity", "angle", "D0", "R0", "indexA", "indexB" })
     params[k] = fargs(string("--") + k);
+
+  params["matrix_refine"] = fargs("--matrix-refine");
+  params["spectrum_mode"] = (args.at("--spectrum-mode").asString() == "events") ? 1.0 : 0.0;
 }
 
 bool IO::readspec(const std::string& filename, std::vector<double>& E, std::vector<double>& F, int ientry) {
